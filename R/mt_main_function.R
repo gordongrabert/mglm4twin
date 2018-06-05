@@ -2,7 +2,7 @@
 #' @author Wagner Hugo Bonat, \email{wbonat@@ufpr.br}
 #'
 #' @description The function \code{mglm4twin} is used for fitting multivariate
-#'     generalized linear models to twin data. The models are specified 
+#'     generalized linear models to twin data. The models are specified
 #'     by a set of lists giving a symbolic
 #'     description of the linear and matrix linear predictors.
 #'     The user can choose between a list of link and variance
@@ -13,7 +13,7 @@
 #'
 #' @param linear_pred a list of formula see \code{\link[stats]{formula}}
 #'     for details.
-#' @param matrix_pred a list of matrices, in general the output of \code{mt_twin}     
+#' @param matrix_pred a list of matrices, in general the output of \code{mt_twin}
 #'     function.
 #' @param link a list of link functions names. Options are:
 #'     \code{"logit"}, \code{"probit"}, \code{"cauchit"}, \code{"cloglog"},
@@ -40,7 +40,7 @@
 #' @param contrasts extra arguments to passed to
 #'     \code{\link[stats]{model.matrix}}.
 #' @param data a data frame.
-#' @usage mglm4twin(linear_pred, matrix_pred, link, variance, 
+#' @usage mglm4twin(linear_pred, matrix_pred, link, variance,
 #'        offset, Ntrial, power_fixed, weights, data, control_initial,
 #'        contrasts, control_algorithm)
 #' @return mcglm returns an object of class 'mcglm'.
@@ -59,7 +59,7 @@
 #' @import Matrix
 
 mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
-                       Ntrial, power_fixed, weights, data,
+                       Ntrial, power_fixed, weights = NULL, data,
                        control_initial = "automatic",
                        contrasts = NULL,
                        control_algorithm = list()) {
