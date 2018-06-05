@@ -27,7 +27,7 @@ ef_sandwich_negative <- function(middle, bord1, bord2) {
 
 #' @rdname ef_sandwich
 ef_sandwich_power <- function(middle, bord1, bord2) {
-    temp1 <- mc_sandwich(middle = middle, bord1 = bord1, bord2 = bord2)
+    temp1 <- ef_sandwich(middle = middle, bord1 = bord1, bord2 = bord2)
     return(temp1 + t(temp1))
 }
 

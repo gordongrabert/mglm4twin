@@ -10,7 +10,7 @@
 #' @keywords internal
 #' @details This function implements the equation 7 of Bonat and
 #'     Jorgensen (2016).
-#' @useDynLib mcglm2twin
+#' @useDynLib mglm4twin
 #' @importFrom Rcpp sourceCpp
 
 ef_sensitivity <- function(product) {

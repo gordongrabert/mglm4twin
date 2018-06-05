@@ -41,8 +41,8 @@
 #' @param verbose a logical if TRUE print the values of the covariance
 #' parameters used on each iteration. Default \code{verbose = FALSE}
 #' @usage fit_mglm(list_initial, list_link, list_variance,
-#'          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed, 
-#'          y_vec, correct, max_iter, tol, method,
+#'          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed,
+#'          weights, y_vec, correct, max_iter, tol, method,
 #'          tuning, verbose)
 #' @return A list with estimated regression and covariance parameters.
 #' Details about the estimation procedures as iterations, sensitivity,
@@ -197,7 +197,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                                 compute_derivative_beta = TRUE)
 
     beta_temp2 <- ef_quasi_score(D = D, inv_C = Cfeatures$inv_Sigma,
-                                 y_vec = y_vec, mu_vec = mu_vec, 
+                                 y_vec = y_vec, mu_vec = mu_vec,
                                  weights = weights)
     inv_J_beta <- solve(beta_temp2$Sensitivity)
 
@@ -205,7 +205,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                            Cfeatures = Cfeatures, inv_J_beta = inv_J_beta,
                            D = D, correct = correct,
                            compute_variability = TRUE)
-    Product_beta <- lapply(Cfeatures$D_Sigma_beta, mc_multiply,
+    Product_beta <- lapply(Cfeatures$D_Sigma_beta, ef_multiply,
                            bord2 = Cfeatures$inv_Sigma)
     S_cov_beta <- ef_cross_sensitivity(Product_cov = cov_temp$Extra,
                                        Product_beta = Product_beta,

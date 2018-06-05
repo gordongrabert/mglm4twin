@@ -10,7 +10,7 @@
 #' @keywords internal
 #' @details It is an internal function.
 
-mc_core_pearson <- function(product, inv_C, res) {
+ef_core_pearson <- function(product, inv_C, res) {
     output <- Matrix::t(res) %*% product %*%
         (inv_C %*% res) - sum(Matrix::diag(product))
     return(as.numeric(output))

@@ -18,8 +18,6 @@
 #'     \code{\link[mglm4twin]{mglm4twin}} for details.
 #' @param variance a list of variance functions names, see
 #'     \code{\link[mglm4twin]{mglm4twin}} for details.
-#' @param covariance a list of covariance link functions names, see
-#'    \code{\link[mglm4twin]{mglm4twin}} for details.
 #' @param offset a list of offset values if any.
 #' @param Ntrial a list of the number of trials on Bernoulli
 #'     experiments. It is useful only for \code{"binomialP"} and
@@ -43,12 +41,12 @@
 #' \code{quasi(link = link, variance = "constant")}. The estimated value
 #' of the dispersion parameter from the \code{glm} function is used as
 #' initial value for the first component of the matrix linear predictor,
-#' for all other components the value zero is used. 
+#' for all other components the value zero is used.
 #' The value of the power parameter is always started at 1.
 #' In the cases of multivariate models the correlation between response
 #' variables is always started at 0.
 #'
-#' @usage mc_initial_values(linear_pred, matrix_pred, link, variance,
+#' @usage mt_initial_values(linear_pred, matrix_pred, link, variance,
 #'                          offset, Ntrial, contrasts, data)
 #'
 #' @export

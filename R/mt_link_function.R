@@ -39,7 +39,7 @@
 #'     = X\beta} is the linear predictor. Let \eqn{D} be a (n x p)
 #'     matrix whose entries are given by the derivatives of \eqn{\mu}
 #'     with respect to \eqn{\beta}.  Such a matrix will be required for the
-#'     fitting algorithm. The function \code{mc_link_function} returns a
+#'     fitting algorithm. The function \code{mt_link_function} returns a
 #'     list where the first element is \eqn{\mu} (n x 1) vector
 #'     and the second is the D (n x p) matrix.
 #'     A user defined function can also be used. It must be a function
@@ -65,9 +65,9 @@ mt_link_function <- function(beta, X, offset, link) {
         assert_that(noNA(offset))
     link_name <- c("logit", "probit", "cauchit", "cloglog", "loglog",
                    "identity", "log", "sqrt", "1/mu^2", "inverse")
-    link_func <- c("mc_logit", "mc_probit", "mc_cauchit", "mc_cloglog",
-                   "mc_loglog", "mc_identity", "mc_log", "mc_sqrt",
-                   "mc_invmu2", "mc_inverse")
+    link_func <- c("mt_logit", "mt_probit", "mt_cauchit", "mt_cloglog",
+                   "mt_loglog", "mt_identity", "mt_log", "mt_sqrt",
+                   "mt_invmu2", "mt_inverse")
     names(link_func) <- link_name
     if (!link %in% link_name) {
         ## Test if link function exists outside.

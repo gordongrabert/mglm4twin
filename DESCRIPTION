@@ -1,11 +1,30 @@
 Package: mglm4twin
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Multivariate Generalized linear models for twin data
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+Date: 2018-06-05
+Author: Wagner Hugo Bonat [aut, cre]
+Maintainer: Wagner Hugo Bonat <wbonat@ufpr.br>
+Authors@R: person(c("Wagner","Hugo"), "Bonat", role = c("aut", "cre"),
+                   email = "wbonat@ufpr.br")
+Description: Fitting multivariate generalized linear for twin data.
+Depends:
+    R (>= 3.2.1)
+Suggests:
+    testthat,
+    knitr,
+    devtools
+Imports:
+    stats,
+    Matrix,
+    assertthat,
+    graphics,
+    Rcpp (>= 0.12.16)
+License: GPL-3 | file LICENSE
+LazyData: TRUE
+URL: https://github.com/wbonat/mglm4twin
+BugReports: https://github.com/wbonat/mglm4twin/issues
 Encoding: UTF-8
-LazyData: true
+VignetteBuilder: knitr
+RoxygenNote: 6.0.1
+LinkingTo: Rcpp, RcppArmadillo
