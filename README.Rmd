@@ -3,33 +3,31 @@
 ver <- sub(x=grep(x=readLines("DESCRIPTION"), pattern="^Version: ",
                   value=TRUE),
            pattern="^Version: ", replacement="")
-pkg.name <- "mcglm_"
+pkg.name <- "mglm4twin_"
 pkg.source <- paste0(pkg.name, ver, ".tar.gz")
 pkg.win <- paste0(pkg.name, ver, ".zip")
 ```
 
-# mcglm `r ver`
+# mglm4twin `r ver`
 
-[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=master)](https://travis-ci.org/wbonat/mcglm)
-Build status for the stable version (`master` branch)
+#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=master)](https://trav#is-ci.org/wbonat/mcglm)
+#Build status for the stable version (`master` branch)
 
-[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=devel)](https://travis-ci.org/wbonat/mcglm)
-Build status for the development version (`devel` branch)
+#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=devel)](https://travi#s-ci.org/wbonat/mcglm)
+#Build status for the development version (`devel` branch)
 
-The `mcglm` package fit multivariate covariance generalized linear models
-(Bonat and Jorgensen, 2015).
+The `mglm4twin` package fits multivariate generalized linear models for twin data.
+(Bonat and Jorgensen, 2016).
 
 ## Introduction
 
-`mcglm` fit multivariate covariance generalized linear models. It allows
-use a different linear predictor for each response variable of a
+`mglm4twin` fits multivariate generalized linear models for twin data. 
+It allows use a different linear predictor for each response variable of a
 multivariate response. The response variable can be continous or
 dicrete, like counts and binary and also limited continuos ou
 discrete/continuous inflated responses. The most important and relevant
 feature is that many covariance structures can be used to model the
 relations among variables.
-
-This package is part of the Thesis of the first author.
 
 ## Download and install
 
@@ -41,7 +39,7 @@ install automatically from this GitHub repository:
 
 ```{r, eval=FALSE}
 library(devtools)
-install_github("wbonat/mcglm")
+install_github("wbonat/mglm4twin")
 ```
 
 Alternatively, download the package tarball: [`r pkg.source`][]
@@ -89,7 +87,7 @@ If you want to install the development version, you can use
 
 ```r
 library(devtools)
-install_github("wbonat/mcglm", ref = "devel")
+install_github("wbonat/mglm4twin", ref = "devel")
 ```
 
 Note that the development version can contain bugs and other unknown
@@ -98,12 +96,10 @@ features, so use it at your own risk!
 ## Authors
 
 - [Wagner Hugo Bonat][] (author and main developer)
-- [Walmes Marques Zeviani][] (contributor)
-- [Fernando de Pol Mayer][] (contributor)
 
 ## Documentation
 
-The reference manual in PDF can be found here: [mcglm-manual.pdf][]
+The reference manual in PDF can be found here: [mglm4twin-manual.pdf][]
 
 ## Contributing
 
@@ -123,10 +119,10 @@ See [LICENSE](./LICENSE)
 
 ```{r, echo=FALSE, include=FALSE}
 pkg.source.link <- paste0(
-    "https://github.com/wbonat/mcglm/raw/master/downloads/",
+    "https://github.com/wbonat/mglm4twin/raw/master/downloads/",
     pkg.source)
 pkg.win.link <- paste0(
-    "https://github.com/wbonat/mcglm/raw/master/downloads/",
+    "https://github.com/wbonat/mglm4twin/raw/master/downloads/",
     pkg.win)
 ```
 
@@ -135,8 +131,6 @@ pkg.win.link <- paste0(
 [`devtools`]: https://github.com/hadley/devtools
 [`r pkg.source`]: `r pkg.source.link`
 [`r pkg.win`]: `r pkg.win.link`
-[mcglm-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mcglm-manual.pdf
-[Gitflow worflow]: http://nvie.com/posts/a-successful-git-branching-model/
-[Wagner Hugo Bonat]: http://www.leg.ufpr.br/doku.php/pessoais:wbonat
-[Walmes Marques Zeviani]: http://www.leg.ufpr.br/~walmes
-[Fernando de Pol Mayer]: http://www.leg.ufpr.br/~fernandomayer
+[mglm4twin-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mglm4twin-manual.pdf
+[Gitflow workflow]: http://nvie.com/posts/a-successful-git-branching-model/
+[Wagner Hugo Bonat]: http://www.leg.ufpr.br/doku.php/~wagner

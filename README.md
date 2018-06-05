@@ -1,27 +1,25 @@
 
 
-# mcglm 0.4.0
+# mglm4twin 0.1.0
 
-[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=master)](https://travis-ci.org/wbonat/mcglm)
-Build status for the stable version (`master` branch)
+#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=master)](https://trav#is-ci.org/wbonat/mcglm)
+#Build status for the stable version (`master` branch)
 
-[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=devel)](https://travis-ci.org/wbonat/mcglm)
-Build status for the development version (`devel` branch)
+#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=devel)](https://travi#s-ci.org/wbonat/mcglm)
+#Build status for the development version (`devel` branch)
 
-The `mcglm` package fit multivariate covariance generalized linear models
-(Bonat and Jorgensen, 2015).
+The `mglm4twin` package fits multivariate generalized linear models for twin data.
+(Bonat and Jorgensen, 2016).
 
 ## Introduction
 
-`mcglm` fit multivariate covariance generalized linear models. It allows
-use a different linear predictor for each response variable of a
+`mglm4twin` fits multivariate generalized linear models for twin data. 
+It allows use a different linear predictor for each response variable of a
 multivariate response. The response variable can be continous or
 dicrete, like counts and binary and also limited continuos ou
 discrete/continuous inflated responses. The most important and relevant
 feature is that many covariance structures can be used to model the
 relations among variables.
-
-This package is part of the Thesis of the first author.
 
 ## Download and install
 
@@ -34,23 +32,23 @@ install automatically from this GitHub repository:
 
 ```r
 library(devtools)
-install_github("wbonat/mcglm")
+install_github("wbonat/mglm4twin")
 ```
 
-Alternatively, download the package tarball: [mcglm_0.4.0.tar.gz][]
+Alternatively, download the package tarball: [mglm4twin_0.1.0.tar.gz][]
 and run from a UNIX terminal (make sure you are on the container file
 directory):
 
 
 ```
-R CMD INSTALL -l /path/to/your/R/library mcglm_0.4.0.tar.gz
+R CMD INSTALL -l /path/to/your/R/library mglm4twin_0.1.0.tar.gz
 ```
 
 Or, inside an `R` session:
 
 
 ```
-install.packages("mcglm_0.4.0.tar.gz", repos = NULL,
+install.packages("mglm4twin_0.1.0.tar.gz", repos = NULL,
                  lib.loc = "/path/to/your/R/library",
                  dependencies = TRUE)
 ```
@@ -62,13 +60,13 @@ library.
 
 ### Windows
 
-Download Windows binary version: [mcglm_0.4.0.zip][] (**do not unzip
+Download Windows binary version: [mglm4twin_0.1.0.zip][] (**do not unzip
 it under Windows**), put the file in your working directory, and from
 inside `R`:
 
 
 ```
-install.packages("mcglm_0.4.0.zip", repos = NULL,
+install.packages("mglm4twin_0.1.0.zip", repos = NULL,
                  dependencies = TRUE)
 ```
 
@@ -82,7 +80,7 @@ If you want to install the development version, you can use
 
 ```r
 library(devtools)
-install_github("wbonat/mcglm", ref = "devel")
+install_github("wbonat/mglm4twin", ref = "devel")
 ```
 
 Note that the development version can contain bugs and other unknown
@@ -91,12 +89,10 @@ features, so use it at your own risk!
 ## Authors
 
 - [Wagner Hugo Bonat][] (author and main developer)
-- [Walmes Marques Zeviani][] (contributor)
-- [Fernando de Pol Mayer][] (contributor)
 
 ## Documentation
 
-The reference manual in PDF can be found here: [mcglm-manual.pdf][]
+The reference manual in PDF can be found here: [mglm4twin-manual.pdf][]
 
 ## Contributing
 
@@ -119,10 +115,8 @@ See [LICENSE](./LICENSE)
 [GNU General Public License (GPL) v3.0]: http://www.gnu.org/licenses/gpl-3.0.html
 [`roxygen2`]: https://github.com/klutometis/roxygen
 [`devtools`]: https://github.com/hadley/devtools
-[mcglm_0.4.0.tar.gz]: https://github.com/wbonat/mcglm/raw/master/downloads/mcglm_0.4.0.tar.gz
-[mcglm_0.4.0.zip]: https://github.com/wbonat/mcglm/raw/master/downloads/mcglm_0.4.0.zip
-[mcglm-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mcglm-manual.pdf
+[mglm4twin_0.1.0.tar.gz]: https://github.com/wbonat/mglm4twin/raw/master/downloads/mglm4twin_0.1.0.tar.gz
+[mglm4twin_0.1.0.zip]: https://github.com/wbonat/mglm4twin/raw/master/downloads/mglm4twin_0.1.0.zip
+[mcglm-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mglm4twin-manual.pdf
 [Gitflow worflow]: http://nvie.com/posts/a-successful-git-branching-model/
-[Wagner Hugo Bonat]: http://www.leg.ufpr.br/doku.php/pessoais:wbonat
-[Walmes Marques Zeviani]: http://www.leg.ufpr.br/~walmes
-[Fernando de Pol Mayer]: http://www.leg.ufpr.br/~fernandomayer
+[Wagner Hugo Bonat]: http://www.leg.ufpr.br/doku.php/~wagner
