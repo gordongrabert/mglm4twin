@@ -98,7 +98,7 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
                               data = data)
         cat("Automatic initial values selected.", "\n")
     }
-    con <- list(correct = TRUE, max_iter = 20, tol = 1e-04,
+    con <- list(correct = FALSE, max_iter = 20, tol = 1e-04,
                 method = "chaser", tuning = 1, verbose = FALSE)
     con[(namc <- names(control_algorithm))] <- control_algorithm
     if (!is.null(contrasts)) {
