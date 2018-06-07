@@ -66,6 +66,7 @@ print.mglm4twin <- function(x, ...) {
 
 coef.mglm4twin <- function(object, std.error = FALSE, model,
                            response = NULL, ...) {
+  n_resp <- length(object$beta_names)
   Estimates <- c(object$Regression, object$Covariance)
   cod_beta <- list()
   beta_num <- list()
@@ -155,9 +156,10 @@ coef.mglm4twin <- function(object, std.error = FALSE, model,
 #' @export
 
 summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
+  n_resp <- length(object$beta_names)
   out <- coef(object, std.error = TRUE, model = model)
   VCOV <- vcov(object, model = model)
-  n_resp <- length(object$beta_names)
+  cross_terms <- combn(n_resp, 2)
   output <- list()
   for(i in 1:n_resp) {
     tab_beta <- coef(object, std.error = TRUE, model = model,
@@ -252,15 +254,260 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
     if(model == "AE") {
       tab_rho_a <- mt_compute_rho(Estimates = out, vcov = VCOV,
                                   component = "A", n_resp = n_resp)
-      tab_rho_e <- mt_compute_rho(Estimates = out_cov, vcov = VCOV,
+      tab_rho_e <- mt_compute_rho(Estimates = out, vcov = VCOV,
                                   component = "E", n_resp = n_resp)
-
-
+      gen <- mt_compute_gen(Estimates = out, vcov = VCOV,
+                            model = model, n_resp = n_resp)
+      # Environment main effects
+      Env_main <- data.frame("Estimates" = diag(gen[[1]]),
+                             "std.error" = diag(gen[[3]]))
+      Env_main$"z value" <- Env_main[, 1]/Env_main[, 2]
+      Env_main$"Pr(>|z|)"  <- 2*pnorm(-abs(Env_main[, 1]/Env_main[, 2]))
+      rownames(Env_main) <- paste0("e", 1:n_resp)
+      # Environment cross effects
+      Env_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
+                              "std.error" = gen[[3]][upper.tri(gen[[3]])])
+      Env_cross$"z value" <- Env_cross[, 1]/Env_cross[, 2]
+      Env_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(Env_cross[, 1]/Env_cross[, 2]))
+      rownames(Env_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      # Genetic main effects
+      A_main <- data.frame("Estimates" = diag(gen[[2]]),
+                             "std.error" = diag(gen[[4]]))
+      A_main$"z value" <- A_main[, 1]/A_main[, 2]
+      A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
+      rownames(A_main) <- paste0("h", 1:n_resp)
+      # Genetic cross effects
+      A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
+                              "std.error" = gen[[4]][upper.tri(gen[[4]])])
+      A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
+      A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
+      rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      cat("Measures associated with genetic structure:\n")
+      cat("Genetic correlation:\n")
+      print(tab_rho_a)
+      cat("\n")
+      cat("Heritability:\n")
+      print(A_main)
+      cat("\n")
+      cat("Bivariate heritability:\n")
+      print(A_cross)
+      cat("\n")
+      cat("Measures associated with environment structure:\n")
+      cat("Environment correlation:\n")
+      print(tab_rho_e)
+      cat("\n")
+      cat("Environmentality:\n")
+      print(Env_main)
+      cat("\n")
+      cat("Bivariate environmentality:\n")
+      print(Env_cross)
+      cat("\n")
     }
-
+    if(model == "CE") {
+      tab_rho_c <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "C", n_resp = n_resp)
+      tab_rho_e <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "E", n_resp = n_resp)
+      gen <- mt_compute_gen(Estimates = out, vcov = VCOV,
+                            model = model, n_resp = n_resp)
+      # Environment main effects
+      E_main <- data.frame("Estimates" = diag(gen[[1]]),
+                             "std.error" = diag(gen[[3]]))
+      E_main$"z value" <- E_main[, 1]/E_main[, 2]
+      E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
+      rownames(E_main) <- paste0("e", 1:n_resp)
+      # Environment cross effects
+      E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
+                            "std.error" = gen[[3]][upper.tri(gen[[3]])])
+      E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
+      E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
+      rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      # Common environment main effects
+      C_main <- data.frame("Estimates" = diag(gen[[2]]),
+                           "std.error" = diag(gen[[4]]))
+      C_main$"z value" <- C_main[, 1]/C_main[, 2]
+      C_main$"Pr(>|z|)"  <- 2*pnorm(-abs(C_main[, 1]/C_main[, 2]))
+      rownames(C_main) <- paste0("c", 1:n_resp)
+      # Common environment cross effects
+      C_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
+                            "std.error" = gen[[4]][upper.tri(gen[[4]])])
+      C_cross$"z value" <- C_cross[, 1]/C_cross[, 2]
+      C_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(C_cross[, 1]/C_cross[, 2]))
+      rownames(C_cross) <- paste0("c", cross_terms[1,], cross_terms[2,])
+      cat("Measures associated with common environment structure:\n")
+      cat("Common environment correlation:\n")
+      print(tab_rho_c)
+      cat("\n")
+      cat("Common environment:\n")
+      print(C_main)
+      cat("\n")
+      cat("Bivariate common environmentality:\n")
+      print(C_cross)
+      cat("\n")
+      cat("Measures associated with environment structure:\n")
+      cat("Environment correlation:\n")
+      print(tab_rho_e)
+      cat("\n")
+      cat("Environmentality:\n")
+      print(E_main)
+      cat("\n")
+      cat("Bivariate environmentality:\n")
+      print(E_cross)
+      cat("\n")
+    }
+    if(model == "ACE") {
+      tab_rho_a <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "A", n_resp = n_resp)
+      tab_rho_c <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "C", n_resp = n_resp)
+      tab_rho_e <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "E", n_resp = n_resp)
+      gen <- mt_compute_gen(Estimates = out, vcov = VCOV,
+                            model = model, n_resp = n_resp)
+      # Environment main effects
+      E_main <- data.frame("Estimates" = diag(gen[[1]]),
+                            "std.error" = diag(gen[[4]]))
+      E_main$"z value" <- E_main[, 1]/E_main[, 2]
+      E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
+      rownames(E_main) <- paste0("e", 1:n_resp)
+      # Environment cross effects
+      E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
+                            "std.error" = gen[[4]][upper.tri(gen[[4]])])
+      E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
+      E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
+      rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      # Genetic main effects
+      A_main <- data.frame("Estimates" = diag(gen[[2]]),
+                           "std.error" = diag(gen[[5]]))
+      A_main$"z value" <- A_main[, 1]/A_main[, 2]
+      A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
+      rownames(A_main) <- paste0("h", 1:n_resp)
+      # Genetic cross effects
+      A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
+                            "std.error" = gen[[5]][upper.tri(gen[[5]])])
+      A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
+      A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
+      rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      # Commmon environment main effects
+      C_main <- data.frame("Estimates" = diag(gen[[3]]),
+                           "std.error" = diag(gen[[6]]))
+      C_main$"z value" <- C_main[, 1]/C_main[, 2]
+      C_main$"Pr(>|z|)"  <- 2*pnorm(-abs(C_main[, 1]/C_main[, 2]))
+      rownames(C_main) <- paste0("c", 1:n_resp)
+      # Common environment cross effects
+      C_cross <- data.frame("Estimates" = gen[[3]][upper.tri(gen[[3]])],
+                            "std.error" = gen[[6]][upper.tri(gen[[6]])])
+      C_cross$"z value" <- C_cross[, 1]/C_cross[, 2]
+      C_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(C_cross[, 1]/C_cross[, 2]))
+      rownames(C_cross) <- paste0("c", cross_terms[1,], cross_terms[2,])
+      cat("Measures associated with genetic structure:\n")
+      cat("Genetic correlation:\n")
+      print(tab_rho_a)
+      cat("\n")
+      cat("Heritability:\n")
+      print(A_main)
+      cat("\n")
+      cat("Bivariate heritability:\n")
+      print(A_cross)
+      cat("\n")
+      cat("Measures associated with common environment structure:\n")
+      cat("Common environment correlation:\n")
+      print(tab_rho_c)
+      cat("\n")
+      cat("Common environment:\n")
+      print(C_main)
+      cat("\n")
+      cat("Bivariate common environment:\n")
+      print(C_cross)
+      cat("\n")
+      cat("Measures associated with environment structure:\n")
+      cat("Environment correlation:\n")
+      print(tab_rho_e)
+      cat("\n")
+      cat("Environmentality:\n")
+      print(E_main)
+      cat("\n")
+      cat("Bivariate environmentality:\n")
+      print(E_cross)
+      cat("\n")
+    }
+    if(model == "ADE") {
+      tab_rho_a <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "A", n_resp = n_resp)
+      tab_rho_d <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "D", n_resp = n_resp)
+      tab_rho_e <- mt_compute_rho(Estimates = out, vcov = VCOV,
+                                  component = "E", n_resp = n_resp)
+      gen <- mt_compute_gen(Estimates = out, vcov = VCOV,
+                            model = model, n_resp = n_resp)
+      # Environment main effects
+      E_main <- data.frame("Estimates" = diag(gen[[1]]),
+                           "std.error" = diag(gen[[4]]))
+      E_main$"z value" <- E_main[, 1]/E_main[, 2]
+      E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
+      rownames(E_main) <- paste0("e", 1:n_resp)
+      # Environment cross effects
+      E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
+                            "std.error" = gen[[4]][upper.tri(gen[[4]])])
+      E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
+      E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
+      rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      # Genetic main effects
+      A_main <- data.frame("Estimates" = diag(gen[[2]]),
+                           "std.error" = diag(gen[[5]]))
+      A_main$"z value" <- A_main[, 1]/A_main[, 2]
+      A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
+      rownames(A_main) <- paste0("h", 1:n_resp)
+      # Genetic cross effects
+      A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
+                            "std.error" = gen[[5]][upper.tri(gen[[5]])])
+      A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
+      A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
+      rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      # D main effects
+      D_main <- data.frame("Estimates" = diag(gen[[3]]),
+                           "std.error" = diag(gen[[6]]))
+      D_main$"z value" <- D_main[, 1]/D_main[, 2]
+      D_main$"Pr(>|z|)"  <- 2*pnorm(-abs(D_main[, 1]/D_main[, 2]))
+      rownames(D_main) <- paste0("d", 1:n_resp)
+      # D cross effects
+      D_cross <- data.frame("Estimates" = gen[[3]][upper.tri(gen[[3]])],
+                            "std.error" = gen[[6]][upper.tri(gen[[6]])])
+      D_cross$"z value" <- D_cross[, 1]/D_cross[, 2]
+      D_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(D_cross[, 1]/D_cross[, 2]))
+      rownames(D_cross) <- paste0("d", cross_terms[1,], cross_terms[2,])
+      cat("Measures associated with genetic structure:\n")
+      cat("Genetic correlation:\n")
+      print(tab_rho_a)
+      cat("\n")
+      cat("Heritability:\n")
+      print(A_main)
+      cat("\n")
+      cat("Bivariate heritability:\n")
+      print(A_cross)
+      cat("\n")
+      cat("Measures associated with D structure:\n")
+      cat("D correlation:\n")
+      print(tab_rho_d)
+      cat("\n")
+      cat("D:\n")
+      print(D_main)
+      cat("\n")
+      cat("Bivariate D:\n")
+      print(D_cross)
+      cat("\n")
+      cat("Measures associated with environment structure:\n")
+      cat("Environment correlation:\n")
+      print(tab_rho_e)
+      cat("\n")
+      cat("Environmentality:\n")
+      print(E_main)
+      cat("\n")
+      cat("Bivariate environmentality:\n")
+      print(E_cross)
+      cat("\n")
+    }
   }
-
-
   names(object$con$correct) <- ""
   iteration_cov <- length(na.exclude(object$IterationCovariance[, 1]))
   names(iteration_cov) <- ""

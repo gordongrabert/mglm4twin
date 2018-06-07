@@ -42,14 +42,14 @@ mt_compute_gen <- function(Estimates, vcov, model, n_resp) {
                                        point = Point, cov = VCOV_temp)
         CC_std[i,j] <- mt_delta_method(fx = ~ x3/(x1+x2+x3),
                                        point = Point, cov = VCOV_temp)
-        output <- list(EE, AA, DD, EE_std, AA_std, CC_std)
+        output <- list(EE, AA, CC, EE_std, AA_std, CC_std)
       }
       if(model == "ADE") {
         if(i == j) {
           Param <- paste0(c("E","A", "D"), i)
         }
         if(i != j) {
-          Param <- paste0(c("E","A","C"), i, j)
+          Param <- paste0(c("E","A","D"), i, j)
         }
         Point <- Estimates[which(Estimates$Parameters %in% Param),]$Estimates
         VCOV_temp <- vcov[Param,Param]
@@ -96,7 +96,7 @@ mt_compute_gen <- function(Estimates, vcov, model, n_resp) {
         CC[i,j] <- Point[2]/(Point[1] + Point[2])
         CC_std[i,j] <- mt_delta_method(fx = ~ x2/(x1+x2),
                                        point = Point, cov = VCOV_temp)
-        output <- list(EE, C, EE_std, CC_std)
+        output <- list(EE, CC, EE_std, CC_std)
       }
     }
   }
