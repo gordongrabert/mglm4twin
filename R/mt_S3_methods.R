@@ -85,39 +85,66 @@ coef.mglm4twin <- function(object, std.error = FALSE, model,
     power_nome <- paste0("power", unlist(power_code))
   }
   # Genetic components
-  idx <- combn(n_resp, 2)
   E_main <- paste0("E", 1:n_resp)
   A_main <- paste0("A", 1:n_resp)
   C_main <- paste0("C", 1:n_resp)
   D_main <- paste0("D", 1:n_resp)
-  E_cross <- list()
-  A_cross <- list()
-  C_cross <- list()
-  D_cross <- list()
-  for(i in 1:dim(idx)[2]) {
-    E_cross[[i]] <- paste0("E", paste0(idx[1,i],idx[2,i]))
-    A_cross[[i]] <- paste0("A", paste0(idx[1,i],idx[2,i]))
-    C_cross[[i]] <- paste0("C", paste0(idx[1,i],idx[2,i]))
-    D_cross[[i]] <- paste0("D", paste0(idx[1,i],idx[2,i]))
+  if(n_resp > 1) {
+    idx <- combn(n_resp, 2)
+    E_cross <- list()
+    A_cross <- list()
+    C_cross <- list()
+    D_cross <- list()
+    for(i in 1:dim(idx)[2]) {
+      E_cross[[i]] <- paste0("E", paste0(idx[1,i],idx[2,i]))
+      A_cross[[i]] <- paste0("A", paste0(idx[1,i],idx[2,i]))
+      C_cross[[i]] <- paste0("C", paste0(idx[1,i],idx[2,i]))
+      D_cross[[i]] <- paste0("D", paste0(idx[1,i],idx[2,i]))
+    }
+    E_cross <- unlist(E_cross)
+    A_cross <- unlist(A_cross)
+    C_cross <- unlist(C_cross)
+    D_cross <- unlist(D_cross)
   }
-  E_cross <- unlist(E_cross)
-  A_cross <- unlist(A_cross)
-  C_cross <- unlist(C_cross)
-  D_cross <- unlist(D_cross)
   if(model == "E") {
-    cod_cov <- c(E_main, E_cross)
+    if(n_resp > 1) {
+      cod_cov <- c(E_main, E_cross)
+    }
+    if(n_resp == 1) {
+      cod_cov <- E_main
+    }
   }
   if(model == "AE") {
-    cod_cov <- c(E_main, E_cross, A_main, A_cross)
+    if(n_resp > 1) {
+      cod_cov <- c(E_main, E_cross, A_main, A_cross)
+    }
+    if(n_resp == 1) {
+      cod_cov <- c(E_main, A_main)
+    }
   }
   if(model == "CE") {
-    cod_cov <- c(E_main, E_cross, C_main, C_cross)
+    if(n_resp > 1) {
+      cod_cov <- c(E_main, E_cross, C_main, C_cross)
+    }
+    if(n_resp == 1) {
+      cod_cov <- c(E_main, C_main)
+    }
   }
   if(model == "ACE") {
-    cod_cov <- c(E_main, E_cross, A_main, A_cross, C_main, C_cross)
+    if(n_resp > 1) {
+      cod_cov <- c(E_main, E_cross, A_main, A_cross, C_main, C_cross)
+    }
+    if(n_resp == 1) {
+      cod_cov <- c(E_main, A_main, C_main)
+    }
   }
   if(model == "ADE") {
-    cod_cov <- c(E_main, E_cross, A_main, A_cross, D_main, D_cross)
+    if(n_resp > 1) {
+      cod_cov <- c(E_main, E_cross, A_main, A_cross, D_main, D_cross)
+    }
+    if(n_resp == 1) {
+      cod_cov <- c(E_main, A_main, D_main)
+    }
   }
   if(length(power_code) != 0) {
     Parameters <- c(beta_nome, power_nome, cod_cov)
@@ -159,7 +186,9 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
   n_resp <- length(object$beta_names)
   out <- coef(object, std.error = TRUE, model = model)
   VCOV <- vcov(object, model = model)
-  cross_terms <- combn(n_resp, 2)
+  if(n_resp > 1) {
+    cross_terms <- combn(n_resp, 2)
+  }
   output <- list()
   for(i in 1:n_resp) {
     tab_beta <- coef(object, std.error = TRUE, model = model,
