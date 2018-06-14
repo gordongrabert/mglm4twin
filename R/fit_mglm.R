@@ -68,16 +68,10 @@
 
 fit_mglm <- function(list_initial, list_link, list_variance,
                       list_X, list_Z, list_offset, list_Ntrial,
-                      list_power_fixed, weights = NULL,
+                      list_power_fixed, list_weights = NULL,
                       y_vec, correct = FALSE,
                       max_iter, tol = 0.001, method = "chaser",
                       tuning = 1, verbose) {
-  if(is.null(weights)) {
-    W <- Diagonal(length(y_vec), 1)
-  }
-  if(!is.null(weights)) {
-    W <- Diagonal(length(y_vec), weights)
-  }
     ## Transformation from list to vector
     parametros <- mt_list2vec(list_initial, list_power_fixed)
     n_resp <- length(list_initial$regression)
@@ -105,6 +99,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         # only C or inv_C to be more efficient in this step.
         Cfeatures <- mt_build_sigma(mu = mu, tau = list_initial$tau,
                                     Ntrial = list_Ntrial,
+                                    weights = list_weights,
                                     power = list_initial$power,
                                     Z = list_Z,
                                     variance = list_variance,
@@ -114,7 +109,6 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         # Step 1.3 - Update the regression parameters
         ##### WEIGHTS
         beta_temp <- ef_quasi_score(D = D, inv_C = Cfeatures$inv_Sigma,
-                                    C = Cfeatures$Sigma, W = W,
                                     y_vec = y_vec, mu_vec = mu_vec)
 
         solucao_beta[i, ] <- as.numeric(beta_ini - Matrix::solve(beta_temp$Sensitivity, beta_temp$Score))
@@ -131,6 +125,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         Cfeatures <- mt_build_sigma(mu = mu, tau = list_initial$tau,
                                     power = list_initial$power, Z = list_Z,
                                     Ntrial = list_Ntrial,
+                                    weights = list_weights,
                                     variance = list_variance,
                                     power_fixed = list_power_fixed,
                                     inverse = TRUE,
@@ -140,11 +135,13 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         # Step 2.1 - Using beta(i+1)
         #beta_temp2 <- mc_quasi_score(D = D, inv_C = Cfeatures$inv_C,
         #y_vec = y_vec, mu_vec =  mu_vec)
-        inv_J_beta <- solve(beta_temp$Sensitivity)
+        if(correct == TRUE) {
+          inv_J_beta <- solve(beta_temp$Sensitivity)
+        }
+        if(correct == FALSE) { inv_J_beta <- NULL}
         if (method == "chaser") {
             cov_temp <- ef_pearson(y_vec = y_vec, mu_vec = mu_vec,
                                    Cfeatures = Cfeatures,
-                                   W = W,
                                    inv_J_beta = inv_J_beta, D = D,
                 correct = correct, compute_variability = FALSE)
             step <- tuning * solve(cov_temp$Sensitivity, cov_temp$Score)
@@ -161,7 +158,6 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         if (method == "rc") {
             cov_temp <- ef_pearson(y_vec = y_vec, mu_vec = mu_vec,
                                    Cfeatures = Cfeatures,
-                                   W = W,
                                    inv_J_beta = inv_J_beta, D = D,
                                    correct = correct,
                                    compute_variability = TRUE)
@@ -203,19 +199,19 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                                 power = list_initial$power, Z = list_Z,
                                 variance = list_variance,
                                 Ntrial = list_Ntrial,
+                                weights = list_weights,
                                 power_fixed = list_power_fixed,
                                 inverse = TRUE,
                                 compute_derivative_beta = TRUE)
     #Cfeatures$inv_Sigma <- Cfeatures$inv_Sigma %*% W
 
     beta_temp2 <- ef_quasi_score(D = D, inv_C = Cfeatures$inv_Sigma,
-                                 C = Cfeatures$Sigma, W = W,
                                  y_vec = y_vec, mu_vec = mu_vec)
 
-    inv_S_beta <- solve(beta_temp2$Sensitivity)
-    inv_J_beta <- inv_S_beta%*%beta_temp2$Variability%*%inv_S_beta
+    inv_J_beta <- solve(beta_temp2$Sensitivity)
+
     cov_temp <- ef_pearson(y_vec = y_vec, mu_vec = mu_vec,
-                           Cfeatures = Cfeatures, W = W,
+                           Cfeatures = Cfeatures,
                            inv_J_beta = inv_J_beta,
                            D = D, correct = correct,
                            compute_variability = TRUE)

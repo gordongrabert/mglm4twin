@@ -10,6 +10,7 @@
 #'     a vector (\code{binomialPQ}) of the power parameters.
 #' @param Ntrial number of trials, useful only when dealing with
 #'     binomial response variables.
+#' @param weights a numeric vector of weights for the estimating functions.
 #' @param variance a string specifying the name (\code{constant, tweedie, binomialP
 #'     or binomialPQ}) of the variance function.
 #' @param derivative_power logical if compute (TRUE) or not (FALSE) the
@@ -31,7 +32,7 @@
 #'     The output will be a list, with three elements: V_sqrt, D_V_sqrt_power and
 #'     D_V_sqrt_mu.
 #'
-#' @usage mt_variance_function(mu, power, Ntrial, variance,
+#' @usage mt_variance_function(mu, power, Ntrial, variance, weights,
 #'                            derivative_power, derivative_mu)
 #'
 #' @source Bonat, W. H. and Jorgensen, B. (2016) Multivariate
@@ -46,35 +47,39 @@
 #' mu <- mt_link_function(beta = c(1, 0.5), X = X, offset = NULL,
 #'                        link = "logit")
 #' mt_variance_function(mu = mu$mu, power = c(2, 1), Ntrial = 1,
-#'                      variance = "binomialPQ",
+#'                      variance = "binomialPQ", weights = 1,
 #'                      derivative_power = TRUE, derivative_mu = TRUE)
 #'
 
 ## Generic variance function -------------------------------------------
 mt_variance_function <- function(mu, power, Ntrial, variance,
-                                 derivative_power, derivative_mu) {
+                                 weights, derivative_power,
+                                 derivative_mu) {
     assert_that(is.logical(derivative_power))
     assert_that(is.logical(derivative_mu))
     switch(variance,
            constant = {
-             output <- mt_constant(mu = mu,
+             output <- mt_constant(mu = mu, weights = weights,
                                    derivative_power = derivative_power,
                                    derivative_mu = derivative_mu)
            },
            tweedie = {
                output <- mt_tweedie(mu = mu, power = power,
+                                    weights = weights,
                                     derivative_power = derivative_power,
                                     derivative_mu = derivative_mu)
            },
            binomialP = {
                output <- mt_binomialP(mu = mu, power = power,
                                       Ntrial = Ntrial,
+                                      weights = weights,
                                       derivative_power = derivative_power,
                                       derivative_mu = derivative_mu)
            },
            binomialPQ = {
                output <- mt_binomialPQ(mu = mu, power = power,
                                        Ntrial = Ntrial,
+                                       weights = weights,
                                        derivative_power = derivative_power,
                                        derivative_mu = derivative_mu)
            },
@@ -84,13 +89,14 @@ mt_variance_function <- function(mu, power, Ntrial, variance,
 }
 
 #' @rdname mt_variance_function
-#' @usage mt_tweedie(mu, power, Ntrial, derivative_power, derivative_mu)
+#' @usage mt_tweedie(mu, power, Ntrial, weights, derivative_power, derivative_mu)
 ## Tweedie variance function ---------------------------------------------
-mt_tweedie <- function(mu, power, Ntrial, derivative_power, derivative_mu) {
+mt_tweedie <- function(mu, power, Ntrial, weights,
+                       derivative_power, derivative_mu) {
     ## The observed value can be zero, but not the expected value.
     assert_that(all(mu > 0))
     assert_that(is.number(power))
-    mu.power <- mu^power
+    mu.power <- weights*(mu^power)
     sqrt.mu.power <- sqrt(mu.power)
     n <- length(mu)
     output <- list()
@@ -99,24 +105,24 @@ mt_tweedie <- function(mu, power, Ntrial, derivative_power, derivative_mu) {
       output$D_V_sqrt_power = Diagonal(n = n, (mu.power * log(mu))/(2 * sqrt.mu.power))
     }
     if(derivative_mu == TRUE) {
-      output$D_V_sqrt_mu = (mu^(power -  1) * power)/(2 * sqrt.mu.power)
+      output$D_V_sqrt_mu = (mu^(power -  1) * power * weights)/(2 * sqrt.mu.power)
     }
     return(output)
 }
 
 #' @rdname mt_variance_function
-#' @usage mt_binomialP(mu, power, Ntrial,
+#' @usage mt_binomialP(mu, power, Ntrial, weights,
 #'                     derivative_power, derivative_mu)
 ## BinomialP variance function
 ## -----------------------------------------
-mt_binomialP <- function(mu, power, Ntrial, derivative_power,
-                         derivative_mu) {
+mt_binomialP <- function(mu, power, Ntrial, weights,
+                         derivative_power, derivative_mu) {
     ## The observed value can be 0 and 1, but not the expected value
     assert_that(all(mu > 0))
     assert_that(all(mu < 1))
     assert_that(is.number(power))
     assert_that(all(Ntrial > 0))
-    constant <- (1/Ntrial)
+    constant <- (weights/Ntrial)
     mu.power <- mu^power
     mu.power1 <- (1 - mu)^power
     mu1mu <- constant * (mu.power * mu.power1)
@@ -136,16 +142,17 @@ mt_binomialP <- function(mu, power, Ntrial, derivative_power,
     return(output)
 }
 #' @rdname mt_variance_function
-#' @usage mt_binomialPQ(mu, power, Ntrial,
+#' @usage mt_binomialPQ(mu, power, Ntrial, weights,
 #'                      derivative_power, derivative_mu)
 ## BinomialPQ variance function ----------------------------------------
-mt_binomialPQ <- function(mu, power, Ntrial, derivative_power, derivative_mu) {
+mt_binomialPQ <- function(mu, power, Ntrial, weights,
+                          derivative_power, derivative_mu) {
     ## The observed value can be 0 and 1, but not the expected value
     assert_that(all(mu > 0))
     assert_that(all(mu < 1))
     assert_that(length(power) == 2)
     assert_that(all(Ntrial > 0))
-    constant <- (1/Ntrial)
+    constant <- (weights/Ntrial)
     p <- power[1]
     q <- power[2]
     mu.p <- mu^p
@@ -154,28 +161,29 @@ mt_binomialPQ <- function(mu, power, Ntrial, derivative_power, derivative_mu) {
     mu1mu <- mu.p.mu.q * constant
     sqrt.mu1mu <- sqrt(mu1mu)
     n <- length(mu)
-    denominator <- 2 * sqrt.mu1mu * Ntrial
+    denominator <- 2 * sqrt(mu1mu)
     output <- list()
     output$V_sqrt = Diagonal(n = n, sqrt.mu1mu)
     if(derivative_power == TRUE) {
-      output$D_V_sqrt_p = Diagonal(n = n, (mu.p.mu.q * log(mu))/denominator)
-      output$D_V_sqrt_q = Diagonal(n = n, (mu.p.mu.q * log(1 - mu))/denominator)
+      output$D_V_sqrt_p = Diagonal(n = n, (constant * mu.p.mu.q * log(mu))/denominator)
+      output$D_V_sqrt_q = Diagonal(n = n, (constant * mu.p.mu.q * log(1 - mu))/denominator)
     }
     if(derivative_mu == TRUE) {
-      output$D_V_sqrt_mu = (constant *(mu1.q * (mu^(p - 1)) * p) -
+      output$D_V_sqrt_mu = (constant * (mu1.q * (mu^(p - 1)) * p) -
                             constant * (((1 - mu)^(q - 1)) * mu.p * q))/(2 * sqrt.mu1mu)
     }
     return(output)
 }
 
 #' @rdname mt_variance_function
-#' @usage mt_constant(mu, power, Ntrial, derivative_power, derivative_mu)
+#' @usage mt_constant(mu, power, Ntrial, weights, derivative_power, derivative_mu)
 ## Constant variance function ----------------------------------------
-mt_constant <- function(mu, power, Ntrial, derivative_power, derivative_mu) {
+mt_constant <- function(mu, power, Ntrial, weights,
+                        derivative_power, derivative_mu) {
   ## The observed value can be zero, but not the expected value.
   n <- length(mu)
   output <- list()
-  output$V_sqrt = Diagonal(n = n, 1)
+  output$V_sqrt = Diagonal(n = n, 1*weights)
   if(derivative_power == TRUE) {
     output$D_V_sqrt_power = Diagonal(n = n, 0)
   }

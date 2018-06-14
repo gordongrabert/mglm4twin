@@ -77,6 +77,9 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
     if (missing(Ntrial)) {
         Ntrial <- rep(list(rep(1, dim(data)[1])), n_resp)
     }
+    if (missing(weights)) {
+        weights <- rep(list(rep(1, dim(data)[1])), n_resp)
+    }
     if (missing(power_fixed)) {
         power_fixed <- rep(TRUE, n_resp)
     }
@@ -87,6 +90,7 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
     variance <- as.list(variance)
     offset <- as.list(offset)
     Ntrial <- as.list(Ntrial)
+    weights <- as.list(weights)
     power_fixed <- as.list(power_fixed)
     if (class(control_initial) != "list") {
         control_initial <-
@@ -101,52 +105,57 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
     con <- list(correct = FALSE, max_iter = 20, tol = 1e-04,
                 method = "chaser", tuning = 1, verbose = FALSE)
     con[(namc <- names(control_algorithm))] <- control_algorithm
+    list_model_frame <- lapply(linear_pred, model.frame, data = data)
+    list_Y <- lapply(list_model_frame, model.response)
+    y_vec <- as.numeric(do.call(c, list_Y))
+    weights_vec <- as.numeric(do.call(c, weights))
+    idx <- c(1:length(weights_vec))[weights_vec == 0]
+    data_na <- data[-idx,]
     if (!is.null(contrasts)) {
         list_X <- list()
         for (i in 1:n_resp) {
             list_X[[i]] <- model.matrix(linear_pred[[i]],
                                         contrasts = contrasts[[i]],
-                                        data = data)
+                                        data = data_na)
         }
     } else {
-        list_X <- lapply(linear_pred, model.matrix, data = data)
+        list_X <- lapply(linear_pred, model.matrix, data = data_na)
     }
-
-    list_model_frame <- lapply(linear_pred, model.frame, data = data)
-    list_Y <- lapply(list_model_frame, model.response)
-    y_vec <- as.numeric(do.call(c, list_Y))
+    matrix_pred_na <- lapply(matrix_pred, function(x, idx)x[-idx,-idx], idx = idx)
+    weights_na <- lapply(weights, function(x, idx)x[-idx], idx = idx)
     model_fit <- try(fit_mglm(list_initial = control_initial,
-                               list_link = link,
-                               list_variance = variance,
-                               list_X = list_X, list_Z = matrix_pred,
-                               list_offset = offset,
-                               list_Ntrial = Ntrial,
-                               list_power_fixed = power_fixed,
-                               weights = weights,
-                               y_vec = y_vec,
-                               correct = con$correct,
-                               max_iter = con$max_iter, tol = con$tol,
-                               method = con$method,
-                               tuning = con$tuning,
-                               verbose = con$verbose))
+                              list_link = link,
+                              list_variance = variance,
+                              list_X = list_X, list_Z = matrix_pred_na,
+                              list_offset = offset,
+                              list_Ntrial = Ntrial,
+                              list_power_fixed = power_fixed,
+                              list_weights = weights_na,
+                              y_vec = y_vec,
+                              correct = con$correct,
+                              max_iter = con$max_iter,
+                              tol = con$tol,
+                              method = con$method,
+                              tuning = con$tuning,
+                              verbose = con$verbose))
     if (class(model_fit) != "try-error") {
         model_fit$beta_names <- lapply(list_X, colnames)
         model_fit$power_fixed <- power_fixed
         model_fit$list_initial <- control_initial
-        model_fit$n_obs <- dim(data)[1]
+        model_fit$n_obs <- dim(data_na)[1]
         model_fit$link <- link
         model_fit$variance <- variance
         #model_fit$covariance <- covariance
         model_fit$linear_pred <- linear_pred
         model_fit$con <- con
         model_fit$observed <- Matrix(y_vec, ncol = length(list_Y),
-                                     nrow = dim(data)[1])
+                                     nrow = dim(data_na)[1])
         model_fit$list_X <- list_X
         model_fit$matrix_pred <- matrix_pred
         model_fit$Ntrial <- Ntrial
         model_fit$offset <- offset
         model_fit$power_fixed
-        model_fit$data <- data
+        model_fit$data <- data_na
         class(model_fit) <- "mglm4twin"
     }
     n_it <- length(na.exclude(model_fit$IterationCovariance[,1]))
