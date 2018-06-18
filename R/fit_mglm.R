@@ -27,7 +27,7 @@
 #' analysing binomial data. Default 1.
 #' @param list_power_fixed a list of logicals indicating if the power
 #' parameters should be estimated or not. Default \code{power_fixed = TRUE}.
-#' @param weights Additional weights for the quasi-score function. (Default = NULL).
+#' @param list_weights Additional weights for the quasi-score function. (Default = NULL).
 #' @param y_vec a vector of the stacked response variables.
 #' @param correct a logical indicating if the algorithm will use the
 #' correction term or not. Default \code{correct = FALSE}.
@@ -42,7 +42,7 @@
 #' parameters used on each iteration. Default \code{verbose = FALSE}
 #' @usage fit_mglm(list_initial, list_link, list_variance,
 #'          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed,
-#'          weights, y_vec, correct, max_iter, tol, method,
+#'          list_weights, y_vec, correct, max_iter, tol, method,
 #'          tuning, verbose)
 #' @return A list with estimated regression and covariance parameters.
 #' Details about the estimation procedures as iterations, sensitivity,
@@ -70,8 +70,8 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                       list_X, list_Z, list_offset, list_Ntrial,
                       list_power_fixed, list_weights = NULL,
                       y_vec, correct = FALSE,
-                      max_iter, tol = 0.001, method = "chaser",
-                      tuning = 1, verbose) {
+                      max_iter = 20, tol = 0.001, method = "chaser",
+                      tuning = 1, verbose = FALSE) {
     ## Transformation from list to vector
     parametros <- mt_list2vec(list_initial, list_power_fixed)
     n_resp <- length(list_initial$regression)

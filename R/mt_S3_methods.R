@@ -60,7 +60,7 @@ print.mglm4twin <- function(x, ...) {
 #'
 #' @return A \code{data.frame} with parameters names, estimates,
 #'     response variable number and parameters type.
-#'
+#' @importFrom stats pnorm deriv
 #' @method coef mglm4twin
 #' @export
 
@@ -172,7 +172,7 @@ coef.mglm4twin <- function(object, std.error = FALSE, model,
 #'
 #' @param object an object of \code{mglm4twin} class.
 #' @param model String indicating twin model.
-#' @biometric Logical. If TRUE biometric measures such as heritability,
+#' @param biometric Logical. If TRUE biometric measures such as heritability,
 #' common environment, genetic correlation etc are printed. (Default = FALSE).
 #' @param ... additional arguments affecting the summary produced. Note
 #'     the there is no extra options for mglm4twin object class.

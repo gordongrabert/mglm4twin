@@ -4,7 +4,7 @@
 \alias{mt_build_sigma}
 \title{Build variance-covariance matrix}
 \usage{
-mt_build_sigma(mu, tau, power, Z, Ntrial, variance, power_fixed,
+mt_build_sigma(mu, tau, power, Z, Ntrial, weights, variance, power_fixed,
   inverse = FALSE, compute_derivative_beta = TRUE)
 }
 \arguments{
@@ -19,6 +19,10 @@ argument specifies both p and q. Each slot of the list should specify the
 power parameter for each response variable.}
 
 \item{Z}{A list of matrices.}
+
+\item{Ntrial}{Number of trials for binomial data.}
+
+\item{weights}{Numeric vector.}
 
 \item{variance}{String specifing the variance function: constant,
 tweedie, poisson_tweedie, binomialP or binomialPQ.}

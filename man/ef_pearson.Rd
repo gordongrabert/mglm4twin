@@ -5,8 +5,7 @@
 \title{Pearson estimating function}
 \usage{
 ef_pearson(y_vec, mu_vec, Cfeatures, inv_J_beta = NULL, D = NULL,
-  correct = FALSE, compute_sensitivity = TRUE,
-  compute_variability = FALSE)
+  correct = FALSE, compute_variability = FALSE)
 }
 \arguments{
 \item{y_vec}{A vector.}
@@ -21,9 +20,9 @@ ef_pearson(y_vec, mu_vec, Cfeatures, inv_J_beta = NULL, D = NULL,
 
 \item{correct}{Logical.}
 
-\item{compute_sensitivity}{Logical.}
-
 \item{compute_variability}{Logical.}
+
+\item{compute_sensitivity}{Logical.}
 }
 \value{
 A list with three components: (i) a vector of quasi-score

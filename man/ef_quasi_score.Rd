@@ -4,20 +4,18 @@
 \alias{ef_quasi_score}
 \title{Quasi-score function}
 \usage{
-ef_quasi_score(D, inv_C, y_vec, mu_vec, weights = NULL)
+ef_quasi_score(D, inv_C, y_vec, mu_vec)
 }
 \arguments{
 \item{D}{A matrix. In general the output from
-\code{\link[mcglm]{mc_link_function}}.}
+\code{\link[mglm4twin]{mt_link_function}}.}
 
 \item{inv_C}{A matrix. In general the output from
-\code{\link[mcglm]{mc_build_C}}.}
+\code{\link[mglm4twin]{mt_build_sigma}}.}
 
 \item{y_vec}{A vector.}
 
 \item{mu_vec}{A vector.}
-
-\item{weights}{Additional weights for the estimating function.}
 }
 \value{
 The quasi-score vector, the Sensivity and variability

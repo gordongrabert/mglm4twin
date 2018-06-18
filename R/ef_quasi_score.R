@@ -5,9 +5,9 @@
 #'     variability matrix.
 #'
 #' @param D A matrix. In general the output from
-#'     \code{\link[mcglm]{mc_link_function}}.
+#'     \code{\link[mglm4twin]{mt_link_function}}.
 #' @param inv_C A matrix. In general the output from
-#'     \code{\link[mglm4twin]{mc_build_sigma}}.
+#'     \code{\link[mglm4twin]{mt_build_sigma}}.
 #' @param y_vec A vector.
 #' @param mu_vec A vector.
 #' @keywords internal

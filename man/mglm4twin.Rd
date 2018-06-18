@@ -12,7 +12,7 @@ Bonat, W. H. (2018). Multiple Response Variables Regression
 Models in R: The mcglm Package. Journal of Statistical Software, 84(4):1--30.
 }
 \usage{
-mglm4twin(linear_pred, matrix_pred, link, variance, 
+mglm4twin(linear_pred, matrix_pred, link, variance,
        offset, Ntrial, power_fixed, weights, data, control_initial,
        contrasts, control_algorithm)
 }
@@ -63,7 +63,7 @@ mcglm returns an object of class 'mcglm'.
 }
 \description{
 The function \code{mglm4twin} is used for fitting multivariate
-    generalized linear models to twin data. The models are specified 
+    generalized linear models to twin data. The models are specified
     by a set of lists giving a symbolic
     description of the linear and matrix linear predictors.
     The user can choose between a list of link and variance

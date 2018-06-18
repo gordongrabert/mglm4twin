@@ -14,7 +14,7 @@ Models in R: The mcglm Package. Journal of Statistical Software, 84(4):1--30.
 \usage{
 fit_mglm(list_initial, list_link, list_variance,
          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed,
-         weights, y_vec, correct, max_iter, tol, method,
+         list_weights, y_vec, correct, max_iter, tol, method,
          tuning, verbose)
 }
 \arguments{
@@ -48,12 +48,12 @@ analysing binomial data. Default 1.}
 \item{list_power_fixed}{a list of logicals indicating if the power
 parameters should be estimated or not. Default \code{power_fixed = TRUE}.}
 
-\item{weights}{Additional weights for the quasi-score function. (Default = NULL).}
+\item{list_weights}{Additional weights for the quasi-score function. (Default = NULL).}
 
 \item{y_vec}{a vector of the stacked response variables.}
 
 \item{correct}{a logical indicating if the algorithm will use the
-correction term or not. Default \code{correct = TRUE}.}
+correction term or not. Default \code{correct = FALSE}.}
 
 \item{max_iter}{maximum number of iterations. Default \code{max_iter = 20}.}
 
