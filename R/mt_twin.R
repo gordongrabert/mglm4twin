@@ -12,6 +12,7 @@
 #' Options are: \code{"E"}, \code{"AE"}, \code{"CE"},
 #'     \code{"ACE"} and \code{"ADE"} models.
 #' @keywords internal
+#' @export
 #' @return A list of matrices.
 
 mt_twin <- function(N_DZ, N_MZ, n_resp, model) {
