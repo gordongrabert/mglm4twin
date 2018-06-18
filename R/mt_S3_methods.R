@@ -228,6 +228,7 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
   rownames(out_cov) <- out_cov$Parameters
   out_cov$"z value" <- out_cov[, 2]/out_cov[, 3]
   out_cov$"Pr(>|z|)"  <- 2*pnorm(-abs(out_cov[, 2]/out_cov[, 3]))
+  output$Dispersion <- out_cov
   cat("Dispersion:\n")
   if(model == "E") {
     cat("Environment component:\n")
@@ -276,6 +277,9 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
     if(model == "E") {
       tab_rho_e <- mt_compute_rho(Estimates = out, vcov = VCOV,
                                   component = "E", n_resp = n_resp)
+      if(n_resp > 1) {
+        output$E_cross <- tab_rho_e
+      }
       cat("Environmental correlation:\n")
       print(tab_rho_e)
       cat("\n")
@@ -293,24 +297,34 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
       Env_main$"z value" <- Env_main[, 1]/Env_main[, 2]
       Env_main$"Pr(>|z|)"  <- 2*pnorm(-abs(Env_main[, 1]/Env_main[, 2]))
       rownames(Env_main) <- paste0("e", 1:n_resp)
+      output$Env_main <- Env_main
       # Environment cross effects
+      Env_cross <- "Bivariate environmentality no available."
+      if(n_resp > 1) {
       Env_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
                               "std.error" = gen[[3]][upper.tri(gen[[3]])])
       Env_cross$"z value" <- Env_cross[, 1]/Env_cross[, 2]
       Env_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(Env_cross[, 1]/Env_cross[, 2]))
       rownames(Env_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      output$Env_cross <- Env_cross
+      }
       # Genetic main effects
       A_main <- data.frame("Estimates" = diag(gen[[2]]),
                              "std.error" = diag(gen[[4]]))
       A_main$"z value" <- A_main[, 1]/A_main[, 2]
       A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
       rownames(A_main) <- paste0("h", 1:n_resp)
+      output$A_main <- A_main
       # Genetic cross effects
+      A_cross <- "Bivariate heritability no available."
+      if(n_resp > 1) {
       A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
                               "std.error" = gen[[4]][upper.tri(gen[[4]])])
       A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
       A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
       rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      output$A_cross <- A_cross
+      }
       cat("Measures associated with genetic structure:\n")
       cat("Genetic correlation:\n")
       print(tab_rho_a)
@@ -345,24 +359,34 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
       E_main$"z value" <- E_main[, 1]/E_main[, 2]
       E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
       rownames(E_main) <- paste0("e", 1:n_resp)
+      output$E_main <- E_main
       # Environment cross effects
+      E_cross <- "Bivariate environmentality no available."
+      if(n_resp > 1) {
       E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
                             "std.error" = gen[[3]][upper.tri(gen[[3]])])
       E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
       E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
       rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      output$E_cross <- E_cross
+      }
       # Common environment main effects
       C_main <- data.frame("Estimates" = diag(gen[[2]]),
                            "std.error" = diag(gen[[4]]))
       C_main$"z value" <- C_main[, 1]/C_main[, 2]
       C_main$"Pr(>|z|)"  <- 2*pnorm(-abs(C_main[, 1]/C_main[, 2]))
       rownames(C_main) <- paste0("c", 1:n_resp)
+      output$C_main <- C_main
       # Common environment cross effects
+      C_cross <- "Bivariate common environmentality no available."
+      if(n_resp > 1) {
       C_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
                             "std.error" = gen[[4]][upper.tri(gen[[4]])])
       C_cross$"z value" <- C_cross[, 1]/C_cross[, 2]
       C_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(C_cross[, 1]/C_cross[, 2]))
       rownames(C_cross) <- paste0("c", cross_terms[1,], cross_terms[2,])
+      output$C_cross <- C_cross
+      }
       cat("Measures associated with common environment structure:\n")
       cat("Common environment correlation:\n")
       print(tab_rho_c)
@@ -399,36 +423,51 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
       E_main$"z value" <- E_main[, 1]/E_main[, 2]
       E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
       rownames(E_main) <- paste0("e", 1:n_resp)
+      output$E_main <- E_main
       # Environment cross effects
+      E_cross <- "Bivariate environmetality no available."
+      if(n_resp > 1) {
       E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
                             "std.error" = gen[[4]][upper.tri(gen[[4]])])
       E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
       E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
       rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      output$E_cross <- E_cross
+      }
       # Genetic main effects
       A_main <- data.frame("Estimates" = diag(gen[[2]]),
                            "std.error" = diag(gen[[5]]))
       A_main$"z value" <- A_main[, 1]/A_main[, 2]
       A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
       rownames(A_main) <- paste0("h", 1:n_resp)
+      output$A_main <- A_main
       # Genetic cross effects
+      A_cross <- "Bivariate heritability no available."
+      if(n_resp > 1) {
       A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
                             "std.error" = gen[[5]][upper.tri(gen[[5]])])
       A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
       A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
       rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      output$A_cross <- A_cross
+      }
       # Commmon environment main effects
       C_main <- data.frame("Estimates" = diag(gen[[3]]),
                            "std.error" = diag(gen[[6]]))
       C_main$"z value" <- C_main[, 1]/C_main[, 2]
       C_main$"Pr(>|z|)"  <- 2*pnorm(-abs(C_main[, 1]/C_main[, 2]))
       rownames(C_main) <- paste0("c", 1:n_resp)
+      output$C_main <- C_main
       # Common environment cross effects
+      C_cross <- "Bivariate common environmentality no available."
+      if(n_resp > 1) {
       C_cross <- data.frame("Estimates" = gen[[3]][upper.tri(gen[[3]])],
                             "std.error" = gen[[6]][upper.tri(gen[[6]])])
       C_cross$"z value" <- C_cross[, 1]/C_cross[, 2]
       C_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(C_cross[, 1]/C_cross[, 2]))
       rownames(C_cross) <- paste0("c", cross_terms[1,], cross_terms[2,])
+      output$C_cross <- C_cross
+      }
       cat("Measures associated with genetic structure:\n")
       cat("Genetic correlation:\n")
       print(tab_rho_a)
@@ -475,36 +514,51 @@ summary.mglm4twin <- function(object, model, biometric = FALSE,  ...) {
       E_main$"z value" <- E_main[, 1]/E_main[, 2]
       E_main$"Pr(>|z|)"  <- 2*pnorm(-abs(E_main[, 1]/E_main[, 2]))
       rownames(E_main) <- paste0("e", 1:n_resp)
+      output$E_main <- E_main
       # Environment cross effects
+      E_cross <- "Bivariate environmentality no available."
+      if(n_resp > 1) {
       E_cross <- data.frame("Estimates" = gen[[1]][upper.tri(gen[[1]])],
                             "std.error" = gen[[4]][upper.tri(gen[[4]])])
       E_cross$"z value" <- E_cross[, 1]/E_cross[, 2]
       E_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(E_cross[, 1]/E_cross[, 2]))
       rownames(E_cross) <- paste0("e", cross_terms[1,], cross_terms[2,])
+      output$E_cross <- E_cross
+      }
       # Genetic main effects
       A_main <- data.frame("Estimates" = diag(gen[[2]]),
                            "std.error" = diag(gen[[5]]))
       A_main$"z value" <- A_main[, 1]/A_main[, 2]
       A_main$"Pr(>|z|)"  <- 2*pnorm(-abs(A_main[, 1]/A_main[, 2]))
       rownames(A_main) <- paste0("h", 1:n_resp)
+      output$A_main <- A_main
       # Genetic cross effects
+      A_cross <- "Bivariate heritability no available."
+      if(n_resp > 1) {
       A_cross <- data.frame("Estimates" = gen[[2]][upper.tri(gen[[2]])],
                             "std.error" = gen[[5]][upper.tri(gen[[5]])])
       A_cross$"z value" <- A_cross[, 1]/A_cross[, 2]
       A_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(A_cross[, 1]/A_cross[, 2]))
       rownames(A_cross) <- paste0("h", cross_terms[1,], cross_terms[2,])
+      output$A_cross <- A_cross
+      }
       # D main effects
       D_main <- data.frame("Estimates" = diag(gen[[3]]),
                            "std.error" = diag(gen[[6]]))
       D_main$"z value" <- D_main[, 1]/D_main[, 2]
       D_main$"Pr(>|z|)"  <- 2*pnorm(-abs(D_main[, 1]/D_main[, 2]))
       rownames(D_main) <- paste0("d", 1:n_resp)
+      output$D_main <- D_main
       # D cross effects
+      D_cross <- "Bivariate D components no available."
+      if(n_resp > 1) {
       D_cross <- data.frame("Estimates" = gen[[3]][upper.tri(gen[[3]])],
                             "std.error" = gen[[6]][upper.tri(gen[[6]])])
       D_cross$"z value" <- D_cross[, 1]/D_cross[, 2]
       D_cross$"Pr(>|z|)"  <- 2*pnorm(-abs(D_cross[, 1]/D_cross[, 2]))
       rownames(D_cross) <- paste0("d", cross_terms[1,], cross_terms[2,])
+      output$D_cross <- D_cross
+      }
       cat("Measures associated with genetic structure:\n")
       cat("Genetic correlation:\n")
       print(tab_rho_a)

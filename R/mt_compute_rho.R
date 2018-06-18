@@ -13,6 +13,10 @@
 #' function associated with Twin models.
 
 mt_compute_rho <- function(Estimates, vcov, component, n_resp) {
+  if(n_resp == 1) {
+    tab_rho <- "Univariate model no correlation available"
+  }
+  if(n_resp > 1) {
   idx <- combn(n_resp,2)
   n_cov <- dim(idx)[2]
   rho <- list()
@@ -33,6 +37,7 @@ mt_compute_rho <- function(Estimates, vcov, component, n_resp) {
   tab_rho$"z value" <- tab_rho[, 1]/tab_rho[, 2]
   tab_rho$"Pr(>|z|)"  <- 2*pnorm(-abs(tab_rho[, 1]/tab_rho[, 2]))
   rownames(tab_rho) <- rho_names
+  }
   return(tab_rho)
 }
 
