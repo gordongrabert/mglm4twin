@@ -10,7 +10,7 @@
 #' @return Returns the value of the Gaussian pseudo-loglikelihood.
 #' @export
 
-mt_plogLik <- function(object, verbose = TRUE) {
+plogLik <- function(object, verbose = TRUE) {
     my.gauss <- function(b, det.Sigma, inv.Sigma){
         n <- length(b)
         dens <- (-n/2)*log(2*pi) - 0.5*det.Sigma -

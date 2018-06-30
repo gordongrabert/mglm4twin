@@ -1,0 +1,37 @@
+#' @title Pseudo Kullback-Leibler Information Criterion
+#' @author Wagner Hugo Bonat, \email{wbonat@@ufpr.br}
+#'
+#' @description Extract the pseudo Kullback-Leibler information criterion
+#' (pKLIC) for objects of \code{mglm4twin} class.
+#' @param object an object or a list of objects representing a model
+#' of \code{mglm4twin} class.
+#' @param verbose logical. Print or not the pKLIC value.
+#' @return Returns the value of the pseudo Kullback-Leibler information
+#' criterion.
+#'
+#' @seealso \code{gof}, \code{plogLik}, \code{pAIC}, \code{pBIC} and \code{pKLIC}.
+#'
+#' @source Bonat, W. H. (2018). Multiple Response Variables Regression
+#' Models in R: The mcglm Package. Journal of Statistical Software, 84(4):1--30.
+#'
+#' @export
+
+pKLIC <- function(object, verbose = TRUE) {
+  if(class(object) ==  "mglm4twin") {
+    Pseudo <- plogLik(object = object, verbose = FALSE)
+    penalty <- -sum(diag(object$joint_inv_sensitivity%*%object$joint_variability))
+    pKLIC <- -2*Pseudo$plogLik + 2*penalty
+    if (verbose) cat("pKLIC", pKLIC)
+    return(invisible(list("pKLIC" = pKLIC)))
+  }
+  if(class(object) == "list") {
+    Pseudo <- plogLik(object = object, verbose = FALSE)
+    jis <- bdiag(lapply(object, function(x)x$joint_inv_sensitivity))
+    jv <- bdiag(lapply(object, function(x)x$joint_variability))
+    penalty <- -sum(diag(jis%*%jv))
+    pKLIC <- -2*Pseudo$plogLik + 2*penalty
+    if (verbose) cat("pKLIC", pKLIC)
+    return(invisible(list("pKLIC" = pKLIC)))
+  }
+}
+

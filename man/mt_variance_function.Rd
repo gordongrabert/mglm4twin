@@ -13,18 +13,18 @@ Bonat, W. H. and Jorgensen, B. (2016) Multivariate
     Journal of Royal Statistical Society - Series C 65:649--675.
 }
 \usage{
-mt_variance_function(mu, power, Ntrial, variance, weights,
+mt_variance_function(mu, power, Ntrial, variance,
                            derivative_power, derivative_mu)
 
-mt_tweedie(mu, power, Ntrial, weights, derivative_power, derivative_mu)
+mt_tweedie(mu, power, Ntrial, derivative_power, derivative_mu)
 
-mt_binomialP(mu, power, Ntrial, weights,
+mt_binomialP(mu, power, Ntrial,
                     derivative_power, derivative_mu)
 
-mt_binomialPQ(mu, power, Ntrial, weights,
+mt_binomialPQ(mu, power, Ntrial,
                      derivative_power, derivative_mu)
 
-mt_constant(mu, power, Ntrial, weights, derivative_power, derivative_mu)
+mt_constant(mu, power, Ntrial, derivative_power, derivative_mu)
 }
 \arguments{
 \item{mu}{a numeric vector. In general the output from
@@ -38,8 +38,6 @@ binomial response variables.}
 
 \item{variance}{a string specifying the name (\code{constant, tweedie, binomialP
 or binomialPQ}) of the variance function.}
-
-\item{weights}{a numeric vector of weights for the estimating functions.}
 
 \item{derivative_power}{logical if compute (TRUE) or not (FALSE) the
 derivatives with respect to the power parameter.}
@@ -72,7 +70,7 @@ X <- model.matrix(~x1)
 mu <- mt_link_function(beta = c(1, 0.5), X = X, offset = NULL,
                        link = "logit")
 mt_variance_function(mu = mu$mu, power = c(2, 1), Ntrial = 1,
-                     variance = "binomialPQ", weights = 1,
+                     variance = "binomialPQ",
                      derivative_power = TRUE, derivative_mu = TRUE)
 
 }
