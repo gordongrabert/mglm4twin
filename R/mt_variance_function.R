@@ -131,7 +131,7 @@ mt_binomialP <- function(mu, power, Ntrial,
                                                  log(mu) * mu1mu)/(2 * sqrt.mu1mu))
     }
     if(derivative_mu == TRUE) {
-      D_V_sqrt_mu = (constant *
+      output$D_V_sqrt_mu = (constant *
                        (mu.power1 * (mu^(power - 1)) * power) -
                        constant * (((1 - mu)^(power - 1)) *
                                      mu.power * power))/(2 * sqrt.mu1mu)
