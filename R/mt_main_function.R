@@ -164,7 +164,7 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
         model_fit$offset <- offset
         model_fit$power_fixed
         model_fit$data <- data
-        class(model_fit) <- "mglm4twin"
+        class(model_fit) <- c("mglm4twin")
     }
     n_it <- length(na.exclude(model_fit$IterationCovariance[,1]))
     if(con$max_it == n_it) {warning("Maximum iterations number reached. \n", call. = FALSE)}

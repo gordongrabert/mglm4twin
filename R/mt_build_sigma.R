@@ -13,7 +13,6 @@
 #'     power parameter for each response variable.
 #'@param Z A list of matrices.
 #'@param Ntrial Number of trials for binomial data.
-#'@param weights Numeric vector.
 #'@param variance String specifing the variance function: constant,
 #'     tweedie, poisson_tweedie, binomialP or binomialPQ.
 #'@param power_fixed Logical if the power parameter is fixed at initial
@@ -29,7 +28,7 @@
 #'@seealso \code{\link{mt_link_function}},
 #'     \code{\link{mt_variance_function}}, \code{\link{mt_build_omega}}.
 
-mt_build_sigma <- function(mu, tau, power, Z, Ntrial, weights,
+mt_build_sigma <- function(mu, tau, power, Z, Ntrial,
                            variance, power_fixed, inverse = FALSE,
                            compute_derivative_beta = TRUE) {
   mu_list <- lapply(mu, function(x) x$mu)
@@ -43,7 +42,7 @@ mt_build_sigma <- function(mu, tau, power, Z, Ntrial, weights,
   power_fixed_w <- lapply(power_fixed, function(x)!x)
   variance_work[which(variance_work == "poisson_tweedie")] <- "tweedie"
   V.features <- Map(mt_variance_function, mu = mu_list, power = power,
-                    Ntrial = Ntrial, weights = weights,
+                    Ntrial = Ntrial, #weights = weights,
                     variance = variance_work,
                     derivative_power = power_fixed_w,
                     derivative_mu = compute_derivative_beta)
