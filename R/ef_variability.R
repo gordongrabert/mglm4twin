@@ -17,7 +17,11 @@
 #'     Jorgensen (2016).
 
 ef_variability <- function(sensitivity, product, inv_C, C, res) {
-    W <- lapply(product, ef_multiply2, bord2 = inv_C)
+  W <- list()
+  for(i in 1:length(product)) {
+    W[[i]] <- product[[i]]%*%inv_C
+  }
+  #W <- lapply(product, ef_multiply2, bord2 = inv_C)
     n_par <- length(product)
     k4 <- res^4 - 3 * Matrix::diag(C)^2
     #Variability <- matrix(0, n_par, n_par)
