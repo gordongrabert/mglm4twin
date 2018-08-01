@@ -3,11 +3,13 @@ Type: Package
 Title: Multivariate Generalized linear models for twin data
 Version: 0.1.0
 Date: 2018-06-05
-Author: Wagner Hugo Bonat [aut, cre]
+Author: Wagner Hugo Bonat [aut, cre],
+  Jacob v. B. Hjelmborg [ctb]
 Maintainer: Wagner Hugo Bonat <wbonat@ufpr.br>
-Authors@R: person(c("Wagner","Hugo"), "Bonat", role = c("aut", "cre"),
-                   email = "wbonat@ufpr.br")
-Description: Fitting multivariate generalized linear for twin data.
+Authors@R: c(person(c("Wagner","Hugo"), "Bonat", role = c("aut", "cre"),
+                    email = "wbonat@ufpr.br"),
+	     person(c("Jacob","v. B."), "Hjelmborg", role = "ctb"))
+Description: Fitting multivariate generalized linear models for twin and family data.
 Depends:
     R (>= 3.2.1)
 Suggests:
