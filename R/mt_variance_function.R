@@ -87,7 +87,7 @@ mt_variance_function <- function(mu, power, Ntrial, variance,
 #' @rdname mt_variance_function
 #' @usage mt_tweedie(mu, power, Ntrial, derivative_power, derivative_mu)
 ## Tweedie variance function ---------------------------------------------
-mt_tweedie <- function(mu, power, Ntrial, weights,
+mt_tweedie <- function(mu, power, Ntrial,
                        derivative_power, derivative_mu) {
     ## The observed value can be zero, but not the expected value.
     assert_that(all(mu > 0))

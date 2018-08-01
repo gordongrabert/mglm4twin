@@ -17,7 +17,7 @@ ef_cross_variability <- function(Product_cov, inv_C, res, D) {
     A <- Matrix::t(D) %*% inv_C
     n_beta <- dim(A)[1]
     n_cov <- length(Product_cov)
-    cross_variability <- Matrix(NA, ncol = n_cov, nrow = n_beta)
+    cross_variability <- matrix(NA, ncol = n_cov, nrow = n_beta)
     for (j in 1:n_beta) {
         for (i in 1:n_cov) {
             cross_variability[j, i] <-

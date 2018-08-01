@@ -23,11 +23,11 @@ ef_cross_sensitivity <- function(Product_cov, Product_beta,
                                     nrow = n_cov)
     }
     if (n_beta != 0) {
-        cross_sensitivity <- Matrix(NA, nrow = n_cov, ncol = n_beta)
+        cross_sensitivity <- matrix(NA, nrow = n_cov, ncol = n_beta)
         for (i in 1:n_cov) {
             for (j in 1:n_beta) {
                 cross_sensitivity[i, j] <-
-                    -sum(Product_cov[[i]] * Product_beta[[j]])
+                    -sum(diag(Product_cov[[i]] %*% Product_beta[[j]]))
             }
         }
     }

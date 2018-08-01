@@ -87,7 +87,7 @@ mt_build_sigma <- function(mu, tau, power, Z, Ntrial,
     output_temp <- list()
     for(i in 1:n_resp) {
       D_V_sqrt_beta_i <- lapply(D_V_sqrt_beta[[i]],
-                                function(x,DDi)kronecker(x, DDi), DDi = DD[[i]])
+                                function(x,DDi)kronecker(DDi, x), DDi = DD[[i]])
       output_temp[[i]] <- lapply(D_V_sqrt_beta_i,
                                      function(x, V_O)
                                        x%*%V_O + Matrix::t(V_O)%*%x,
