@@ -1,23 +1,8 @@
 #=======================================================================
-# Script to Check, Build and Distribute the `mcglm` Package
+# Script to Check, Build and Distribute the `mglm4twin` Package
 #
-#                                                        mcglm Core Team
+#                                                   mglm4twin Core Team
 #=======================================================================
-
-#-----------------------------------------------------------------------
-# Check working directory.
-
-switch(Sys.info()["user"],
-       "wagner" = { NULL },
-       "fernandomayer" = { NULL },
-       "walmes" = { setwd("~/repos/mglm4twin/") },
-       {
-           if (basename(getwd()) != "mcglm") {
-               stop("The working directory isn't /mglm4twin.")
-           }
-       })
-cat(getwd(), "\n")
-
 #-----------------------------------------------------------------------
 # Packages.
 
@@ -101,43 +86,7 @@ ls("package:mglm4twin")
 detach("package:mglm4twin")
 
 #-----------------------------------------------------------------------
-# Test installation 2: Install from GitHub branches
 
-list.files(path = libTest, recursive = TRUE)
-unlink(paste0(libTest, "mglm4twin"), recursive = TRUE)
-
-## Test using devtools::install_github():
-
-## In order to make a "clean" test, and not modify a user's .libPaths(),
-## we need to install devtools and all of its dependencies in the new
-## libpath. The function withr::with_libpaths() creates a temporary
-## libpath and install everything there. This is the only way to make
-## install_github() to install a package in another libpath, without
-## modifying the .libPaths().
-
-## Install devtools and all dependencies in the new path
-#with_libpaths(new = libTest,
-#              install.packages("devtools", dependencies = TRUE))
-#require(devtools)
-## Install and test mglm4twin master
-#withr::with_libpaths(new = libTest,
-#              install_github("wbonat/mglm4twin", ref = "master"))
-#library(package = "mglm4twin", lib.loc = libTest)
-packageVersion("mglm4twin")
-ls("package:mglm4twin")
-
-## Install and test mglm4twin devel
-#with_libpaths(new = libTest,
-#              install_github("wbonat/mglm4twin", ref = "devel"))
-#library(package = "mcglm", lib.loc = libTest)
-packageVersion("mglm4twin")
-ls("package:mglm4twin")
-
-## Remove libTest
-unlink(libTest, recursive = TRUE)
-detach("package:mglm4twin")
-
-##----------------------------------------------------------------------
 ## Create package tarballs
 load_all()
 pkg <- paste0("../mglm4twin_", packageVersion("mglm4twin"), ".tar.gz")
@@ -149,12 +98,12 @@ system(cmd.win)
 
 ## PDF manual and network graph
 #ntw <- "./data-raw/mcglm_network.html"
-man <- "../mcglm.Rcheck/mglm4twin-manual.pdf"
+man <- "../mglm4twin.Rcheck/mglm4twin-manual.pdf"
 
 ##----------------------------------------------------------------------
 ## Sending package tarballs and manual to remote server to be
 ## downloadable.
-## URL: http://www.leg.ufpr.br/~leg/mcglm/
+## URL: http://www.leg.ufpr.br/~leg/mglm4twin/
 
 ## Send to LEG server
 ## NOTE: "PATAXO" and "PATAXOP" are exported names in .bashrc (with IP

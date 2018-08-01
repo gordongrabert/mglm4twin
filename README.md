@@ -2,24 +2,19 @@
 
 # mglm4twin 0.1.0
 
-#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=master)](https://trav#is-ci.org/wbonat/mcglm)
-#Build status for the stable version (`master` branch)
+[![Build Status](https://travis-ci.org/wbonat/mglm4twin.svg?branch=master)](https://travis-ci.org/wbonat/mglm4twin)
 
-#[![Build Status](https://travis-ci.org/wbonat/mcglm.svg?branch=devel)](https://travi#s-ci.org/wbonat/mcglm)
-#Build status for the development version (`devel` branch)
-
-The `mglm4twin` package fits multivariate generalized linear models for twin data.
-(Bonat and Jorgensen, 2016).
+The `mglm4twin` package fits multivariate generalized linear models 
+for twin and family data. (Bonat and Hjelmborg, 2018).
 
 ## Introduction
 
-`mglm4twin` fits multivariate generalized linear models for twin data. 
-It allows use a different linear predictor for each response variable of a
-multivariate response. The response variable can be continous or
-dicrete, like counts and binary and also limited continuos ou
-discrete/continuous inflated responses. The most important and relevant
-feature is that many covariance structures can be used to model the
-relations among variables.
+`mglm4twin` fits multivariate generalized linear models for twin and 
+family data. It allows use a different linear predictor for each 
+response variable of a multivariate response. 
+The response variable can be continous or dicrete, like counts and 
+binomial and also limited continuos or discrete/continuous inflated 
+responses. The most important and relevant feature is that many covariance structures can be used to model the relations among different traits.
 
 ## Download and install
 
@@ -117,6 +112,6 @@ See [LICENSE](./LICENSE)
 [`devtools`]: https://github.com/hadley/devtools
 [mglm4twin_0.1.0.tar.gz]: https://github.com/wbonat/mglm4twin/raw/master/downloads/mglm4twin_0.1.0.tar.gz
 [mglm4twin_0.1.0.zip]: https://github.com/wbonat/mglm4twin/raw/master/downloads/mglm4twin_0.1.0.zip
-[mcglm-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mglm4twin-manual.pdf
-[Gitflow worflow]: http://nvie.com/posts/a-successful-git-branching-model/
+[mglm4twin-manual.pdf]: https://github.com/wbonat/mcglm/raw/master/downloads/mglm4twin-manual.pdf
+[Gitflow workflow]: http://nvie.com/posts/a-successful-git-branching-model/
 [Wagner Hugo Bonat]: http://www.leg.ufpr.br/doku.php/~wagner
