@@ -83,7 +83,7 @@ features, so use it at your own risk!
 
 ## Authors
 
-- [Wagner Hugo Bonat][] (author and main developer)
+- [Wagner Hugo Bonat](www.leg.ufpr.br/~wagner) (author and main developer)
 
 ## Documentation
 

@@ -108,9 +108,9 @@ man <- "../mglm4twin.Rcheck/mglm4twin-manual.pdf"
 ## Send to LEG server
 ## NOTE: "PATAXO" and "PATAXOP" are exported names in .bashrc (with IP
 ## and port, respectivelly)
-#cmd <- paste("scp -P $PATAXOP", pkg, man, pkg.win,
-#             "leg@$PATAXO:~/public_html/mglm4twin/source")
-#system(cmd)
+cmd <- paste("scp", pkg, man, pkg.win,
+             "leg@leg.ufpr.br:~/public_html/mglm4twin/source")
+system(cmd)
 #browseURL("http://www.leg.ufpr.br/~leg/mglm4twin/")
 ### PRECISO VER ISSO
 
