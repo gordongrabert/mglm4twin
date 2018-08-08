@@ -11,27 +11,27 @@
 #'
 #' @source Bonat, W. H. (2018). Multiple Response Variables Regression
 #' Models in R: The mcglm Package. Journal of Statistical Software, 84(4):1--30.
-#'
+#' @importFrom stats cov
 #' @export
 
-mt_emp_variability <- function(obj, id) {
-  Cfeatures <- mt_build_sigma(mu = obj$mu, tau = obj$Covariance,
-                              power = do.call(c, obj$list_initial$power),
-                              Z =  obj$matrix_pred,
-                              variance = do.call(c,obj$variance),
-                              Ntrial = obj$Ntrial,
-                              power_fixed = obj$power_fixed,
+mt_emp_variability <- function(object, id) {
+  Cfeatures <- mt_build_sigma(mu = object$mu, tau = object$Covariance,
+                              power = do.call(c, object$list_initial$power),
+                              Z =  object$matrix_pred,
+                              variance = do.call(c,object$variance),
+                              Ntrial = object$Ntrial,
+                              power_fixed = object$power_fixed,
                               inverse = TRUE,
                               compute_derivative_beta = FALSE)
-  y_vec <- as.vector(obj$observed)
-  mu_vec <- obj$fitted
+  y_vec <- as.vector(object$observed)
+  mu_vec <- object$fitted
   temp = data.frame("Y" = y_vec, "mu" = mu_vec, "ID" = as.factor(id),
              "idx" = 1:length(y_vec))
   temp_group <- split(temp, temp$ID)
   nrow <- length(temp_group)
-  n_par <- length(obj$Regression) + length(obj$Covariance)
+  n_par <- length(object$Regression) + length(object$Covariance)
   mat <- matrix(NA, ncol = n_par, nrow = nrow)
-  D <- bdiag(lapply(obj$mu, function(x) x$D))
+  D <- bdiag(lapply(object$mu, function(x) x$D))
   for(i in 1:nrow) {
     Cfeatures_group <- list()
     idx = temp_group[[i]]$idx
