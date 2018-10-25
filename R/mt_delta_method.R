@@ -12,6 +12,7 @@
 #' @keywords internal
 #' @details It is an internal function useful in general for summary
 #' function associated with Twin models.
+#' @export
 
 mt_delta_method <- function (fx, point, cov, std = TRUE) {
     cov <- as.matrix(cov)
