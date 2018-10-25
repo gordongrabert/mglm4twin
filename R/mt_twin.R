@@ -1,6 +1,6 @@
 #' @title Build twin matrix linear predictor components
 #' @name mt_twin
-#' @author Wagner Hugo Bonat, \email{wbonat@@ufpr.br}
+#' @author Wagner Hugo Bonat, \email{wbonat@ufpr.br}
 #'
 #' @description This function provides the components of the matrix
 #' linear predictor suitable for fitting multivariate twin models.
@@ -11,11 +11,12 @@
 #' @param model a string specifying the name of the twin model.
 #' Options are: \code{"E"}, \code{"AE"}, \code{"CE"},
 #'     \code{"ACE"} and \code{"ADE"} models.
+#' @param formula formula specifying regression model for each dispersion component.
 #' @keywords internal
 #' @export
 #' @return A list of matrices.
 
-mt_twin <- function(N_DZ, N_MZ, n_resp, model) {
+mt_twin <- function(N_DZ, N_MZ, n_resp, model, formula = NULL) {
   # Non-diagonal elements
   a_dz <- 0.5
   d_dz <- 0.25
@@ -93,6 +94,25 @@ mt_twin <- function(N_DZ, N_MZ, n_resp, model) {
       output <- c(Z_all$E, Z_all$A, Z_all$D)
     }
   }
+  if(!is.null(formula)) {
+    if(length(output) != length(formula)) {
+      print("Error: Number of formula does not match number of dispersion components")
+    }
+    if(length(output) == length(formula)) {
+      X_list <- lapply(formula, model.matrix, data = data)
+      new_output <- list()
+      list_final <- list()
+      for(i in 1:length(output)) {
+        list_temp <- list()
+        for(j in 1:ncol(X_list[[i]])) {
+          list_temp[[j]] <- X_list[[i]][,j]*output[[i]]
+        }
+        list_final[[i]] <- list_temp
+      }
+      output <- do.call(c,list_final)
+    }
+}
   return(output)
 }
+
 
