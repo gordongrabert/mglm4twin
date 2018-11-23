@@ -37,7 +37,9 @@ plogLik <- function(object, verbose = TRUE) {
       det.Sigma <- determinant(C)$modulus
       ll <- round(as.numeric(my.gauss(b = b, det.Sigma = det.Sigma,
                                       inv.Sigma = inv_C)),2)
-      df <- length(object$Regression) + length(object$Covariance)
+      #df <- length(object$Regression) + length(object$Covariance)
+      df <- sum(do.call(c,lapply(object, function(x)as.numeric(length(x$Regression) + length(x$Covariance)))))
+
       if (verbose) cat("Pseudo log Lik.", ll, sprintf("(df=%d)",df))
       return(invisible(list("plogLik" = ll, "df" = df)))
     }

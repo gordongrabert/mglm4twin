@@ -12,11 +12,12 @@
 #' Options are: \code{"E"}, \code{"AE"}, \code{"CE"},
 #'     \code{"ACE"} and \code{"ADE"} models.
 #' @param formula formula specifying regression model for each dispersion component.
+#' @param data Data set.
 #' @keywords internal
 #' @export
 #' @return A list of matrices.
 
-mt_twin <- function(N_DZ, N_MZ, n_resp, model, formula = NULL) {
+mt_twin <- function(N_DZ, N_MZ, n_resp, model, formula = NULL, data = NULL) {
   # Non-diagonal elements
   a_dz <- 0.5
   d_dz <- 0.25

@@ -4,7 +4,7 @@
 \alias{mt_twin}
 \title{Build twin matrix linear predictor components}
 \usage{
-mt_twin(N_DZ, N_MZ, n_resp, model, formula = NULL)
+mt_twin(N_DZ, N_MZ, n_resp, model, formula = NULL, data = NULL)
 }
 \arguments{
 \item{N_DZ}{Number of DZ twin pairs.}
@@ -18,6 +18,8 @@ Options are: \code{"E"}, \code{"AE"}, \code{"CE"},
     \code{"ACE"} and \code{"ADE"} models.}
 
 \item{formula}{formula specifying regression model for each dispersion component.}
+
+\item{data}{Data set.}
 }
 \value{
 A list of matrices.
