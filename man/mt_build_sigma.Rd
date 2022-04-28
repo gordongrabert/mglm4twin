@@ -4,8 +4,17 @@
 \alias{mt_build_sigma}
 \title{Build variance-covariance matrix}
 \usage{
-mt_build_sigma(mu, tau, power, Z, Ntrial, variance, power_fixed,
-  inverse = FALSE, compute_derivative_beta = TRUE)
+mt_build_sigma(
+  mu,
+  tau,
+  power,
+  Z,
+  Ntrial,
+  variance,
+  power_fixed,
+  inverse = FALSE,
+  compute_derivative_beta = TRUE
+)
 }
 \arguments{
 \item{mu}{List with expected values and derivatives. In general the output from

@@ -4,7 +4,7 @@
 \alias{ef_core_pearson}
 \title{Core of the Pearson estimating function.}
 \usage{
-ef_core_pearson(product, inv_C, res)
+ef_core_pearson(product, inv_C, res, W)
 }
 \arguments{
 \item{product}{A matrix.}
@@ -12,6 +12,8 @@ ef_core_pearson(product, inv_C, res)
 \item{inv_C}{A matrix.}
 
 \item{res}{A vector of weighted residuals.}
+
+\item{W}{Matrix of weights.}
 
 \item{C}{A matrix.}
 }

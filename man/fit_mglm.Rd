@@ -14,8 +14,8 @@ Models in R: The mcglm Package. Journal of Statistical Software, 84(4):1--30.
 \usage{
 fit_mglm(list_initial, list_link, list_variance,
          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed,
-         list_weights, y_vec, correct, max_iter, tol, method,
-         tuning, verbose)
+         y_vec, correct, max_iter, tol, method,
+         tuning, verbose, weights)
 }
 \arguments{
 \item{list_initial}{a list of initial values for regression and
@@ -48,8 +48,6 @@ analysing binomial data. Default 1.}
 \item{list_power_fixed}{a list of logicals indicating if the power
 parameters should be estimated or not. Default \code{power_fixed = TRUE}.}
 
-\item{list_weights}{Additional weights for the quasi-score function. (Default = NULL).}
-
 \item{y_vec}{a vector of the stacked response variables.}
 
 \item{correct}{a logical indicating if the algorithm will use the
@@ -68,6 +66,8 @@ the step-length. Default \code{tuning = 1}.}
 
 \item{verbose}{a logical if TRUE print the values of the covariance
 parameters used on each iteration. Default \code{verbose = FALSE}}
+
+\item{weights}{Vector of weights for model fitting.}
 }
 \value{
 A list with estimated regression and covariance parameters.

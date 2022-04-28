@@ -30,7 +30,9 @@
 #'     \code{binomialPQ} variance functions.
 #' @param power_fixed a list of logicals indicating if the values of the
 #'     power parameter should be estimated or not.
-#' @param weights Additional weights for the quasi-score function. (Default = NULL).
+#' @param weights A list of weights for model fitting. Each element of
+#' the list should be a vector of weights of size equals the number of
+#' observations. Missing observations should be annotated as NA.
 #' @param control_initial a list of initial values for the fitting
 #'     algorithm. If no values are supplied automatic initial values
 #'     will be provided by the function \code{\link{mt_initial_values}}.
@@ -105,21 +107,16 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
                                data = data)
     list_Y <- lapply(list_model_frame, model.response)
     y_vec <- as.numeric(do.call(c, list_Y))
-    if (missing(weights)) {
-      idx <- c(1:length(y_vec))[is.na(y_vec)]
-      weights <- lapply(list_Y, function(x) {
-        tt = rep(1, length(x))
-        tt[idx] = 0
-        return(tt)
-      })
+    if(is.null(weights)) {
+      C <- rep(1, length(y_vec))
+      C[is.na(y_vec)] = 0
+      weights = C
+      y_vec[is.na(y_vec)] <- 0
     }
-    weights_vec <- as.numeric(do.call(c, weights))
-    if(length(idx) != 0) {
-      idx <- c(1:length(weights_vec))[weights_vec == 0]
-      data <- data[-idx,]
-      matrix_pred <- lapply(matrix_pred, function(x, idx)x[-idx,-idx], idx = idx)
-      weights <- lapply(weights, function(x, idx)x[-idx], idx = idx)
-      y_vec <- y_vec[-idx]
+    if(!is.null(weights)) {
+      y_vec[is.na(y_vec)] <- 0
+      if(class(weights) != "list") {weights <- as.list(weights)}
+      weights <- as.numeric(do.call(c, weights))
     }
     if (!is.null(contrasts)) {
         list_X <- list()
@@ -138,7 +135,7 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
                               list_offset = offset,
                               list_Ntrial = Ntrial,
                               list_power_fixed = power_fixed,
-                              list_weights = weights,
+                              weights = weights,
                               y_vec = y_vec,
                               correct = con$correct,
                               max_iter = con$max_iter,
@@ -163,6 +160,7 @@ mglm4twin <- function(linear_pred, matrix_pred, link, variance, offset,
         model_fit$Ntrial <- Ntrial
         model_fit$offset <- offset
         model_fit$power_fixed
+        model_fit$weights <- weights
         model_fit$data <- data
         class(model_fit) <- c("mglm4twin")
     }

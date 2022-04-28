@@ -4,8 +4,7 @@
 \alias{coef.mglm4twin}
 \title{Model Coefficients}
 \usage{
-\method{coef}{mglm4twin}(object, std.error = FALSE, model, response = NULL,
-  ...)
+\method{coef}{mglm4twin}(object, std.error = FALSE, model, response = NULL, ...)
 }
 \arguments{
 \item{object}{an object of \code{mglm4twin} class.}

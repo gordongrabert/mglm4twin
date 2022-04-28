@@ -5,6 +5,7 @@
 #'     Pearson estimating function.
 #'
 #' @param product A list of matrix.
+#' @param W weights.
 #' @return The sensitivity matrix associated with the Pearson estimating
 #'     function.
 #' @keywords internal
@@ -13,12 +14,19 @@
 #' @useDynLib mglm4twin
 #' @importFrom Rcpp sourceCpp
 
-ef_sensitivity <- function(product) {
-    #sourceCpp("src/mc_sensitivity_op.cpp")
-    Sensitivity <- ef_sensitivity_op(products = product)
-    Sensitivity <- forceSymmetric(Sensitivity, uplo = FALSE)
-    return(Sensitivity)
+ef_sensitivity <- function(product, W) {
+  #sourceCpp("src/mc_sensitivity_op.cpp")
+  Sensitivity <- ef_sensitivity_op(products = product, W = W)
+  Sensitivity <- forceSymmetric(Sensitivity, uplo = FALSE)
+  return(Sensitivity)
 }
+
+#ef_sensitivity <- function(product) {
+#    #sourceCpp("src/mc_sensitivity_op.cpp")
+#    Sensitivity <- ef_sensitivity_op(products = product)
+#    Sensitivity <- forceSymmetric(Sensitivity, uplo = FALSE)
+#    return(Sensitivity)
+#}
 
 #ef_sensitivity <- function(product) {
 #  n_par <- length(product)

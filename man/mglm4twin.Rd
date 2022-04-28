@@ -43,7 +43,9 @@ experiments. It is useful only for \code{binomialP} and
 \item{power_fixed}{a list of logicals indicating if the values of the
 power parameter should be estimated or not.}
 
-\item{weights}{Additional weights for the quasi-score function. (Default = NULL).}
+\item{weights}{A list of weights for model fitting. Each element of
+the list should be a vector of weights of size equals the number of
+observations. Missing observations should be annotated as NA.}
 
 \item{data}{a data frame.}
 

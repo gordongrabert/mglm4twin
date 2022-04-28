@@ -27,7 +27,7 @@
 #' analysing binomial data. Default 1.
 #' @param list_power_fixed a list of logicals indicating if the power
 #' parameters should be estimated or not. Default \code{power_fixed = TRUE}.
-#' @param list_weights Additional weights for the quasi-score function. (Default = NULL).
+#' @param weights Vector of weights for model fitting.
 #' @param y_vec a vector of the stacked response variables.
 #' @param correct a logical indicating if the algorithm will use the
 #' correction term or not. Default \code{correct = FALSE}.
@@ -42,8 +42,8 @@
 #' parameters used on each iteration. Default \code{verbose = FALSE}
 #' @usage fit_mglm(list_initial, list_link, list_variance,
 #'          list_X, list_Z, list_offset, list_Ntrial, list_power_fixed,
-#'          list_weights, y_vec, correct, max_iter, tol, method,
-#'          tuning, verbose)
+#'          y_vec, correct, max_iter, tol, method,
+#'          tuning, verbose, weights)
 #' @return A list with estimated regression and covariance parameters.
 #' Details about the estimation procedures as iterations, sensitivity,
 #' variability are also provided. In general the users do not need to
@@ -68,11 +68,13 @@
 
 fit_mglm <- function(list_initial, list_link, list_variance,
                       list_X, list_Z, list_offset, list_Ntrial,
-                      list_power_fixed, list_weights = NULL,
+                      list_power_fixed,
                       y_vec, correct = FALSE,
                       max_iter = 20, tol = 0.001, method = "chaser",
-                      tuning = 1, verbose = FALSE) {
-    ## Transformation from list to vector
+                      tuning = 1, verbose = FALSE, weights) {
+  ## Diagonal matrix with weights
+  W <- Diagonal(length(y_vec), weights)
+  ## Transformation from list to vector
     parametros <- mt_list2vec(list_initial, list_power_fixed)
     n_resp <- length(list_initial$regression)
     ## Getting information about the number of parameters
@@ -109,7 +111,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
         # Step 1.3 - Update the regression parameters
         ##### WEIGHTS
         beta_temp <- ef_quasi_score(D = D, inv_C = Cfeatures$inv_Sigma,
-                                    y_vec = y_vec, mu_vec = mu_vec)
+                                    y_vec = y_vec, mu_vec = mu_vec, W = W)
 
         solucao_beta[i, ] <- as.numeric(beta_ini - Matrix::solve(beta_temp$Sensitivity, beta_temp$Score))
         score_beta_temp[i, ] <- as.numeric(beta_temp$Score)
@@ -143,7 +145,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
             cov_temp <- ef_pearson(y_vec = y_vec, mu_vec = mu_vec,
                                    Cfeatures = Cfeatures,
                                    inv_J_beta = inv_J_beta, D = D,
-                correct = correct, compute_variability = FALSE)
+                correct = correct, compute_variability = FALSE, W = W)
             step <- tuning * solve(cov_temp$Sensitivity, cov_temp$Score)
         }
         #if(method == "gradient") {
@@ -160,7 +162,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                                    Cfeatures = Cfeatures,
                                    inv_J_beta = inv_J_beta, D = D,
                                    correct = correct,
-                                   compute_variability = TRUE)
+                                   compute_variability = TRUE, W = W)
             step <- solve(tuning * cov_temp$Score %*% t(cov_temp$Score)
                           %*% solve(cov_temp$Variability) %*%
                             cov_temp$Sensitivity + cov_temp$Sensitivity)%*% cov_temp$Score
@@ -206,7 +208,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
     #Cfeatures$inv_Sigma <- Cfeatures$inv_Sigma %*% W
 
     beta_temp2 <- ef_quasi_score(D = D, inv_C = Cfeatures$inv_Sigma,
-                                 y_vec = y_vec, mu_vec = mu_vec)
+                                 y_vec = y_vec, mu_vec = mu_vec, W = W)
 
     inv_J_beta <- solve(beta_temp2$Sensitivity)
 
@@ -214,15 +216,18 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                            Cfeatures = Cfeatures,
                            inv_J_beta = inv_J_beta,
                            D = D, correct = correct,
-                           compute_variability = TRUE)
-    Product_beta <- lapply(Cfeatures$D_Sigma_beta, ef_multiply,
-                           bord2 = Cfeatures$inv_Sigma)
+                           compute_variability = TRUE, W = W)
+
+    ## Cross
+    inv_CW <- Cfeatures$inv_Sigma%*%W
+    Product_beta <- lapply(Cfeatures$D_C_beta, ef_multiply,
+                           bord2 = inv_CW)
     S_cov_beta <- ef_cross_sensitivity(Product_cov = cov_temp$Extra,
                                        Product_beta = Product_beta,
                                        n_beta_effective = length(beta_temp$Score))
     res <- y_vec - mu_vec
     V_cov_beta <- ef_cross_variability(Product_cov = cov_temp$Extra,
-                                       inv_C = Cfeatures$inv_Sigma,
+                                       inv_C = inv_CW,
                                        res = res, D = D)
     p1 <- rbind(beta_temp2$Variability, Matrix::t(V_cov_beta))
     p2 <- rbind(V_cov_beta, cov_temp$Variability)
@@ -248,6 +253,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                    C = Cfeatures$Sigma, Information = inf,
                    mu_list = mu, inv_S_beta = inv_S_beta,
                    joint_inv_sensitivity = joint_inv_sensitivity,
-                   joint_variability = joint_variability)
+                   joint_variability = joint_variability,
+                   W = W)
     return(output)
 }

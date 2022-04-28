@@ -4,7 +4,7 @@
 \alias{ef_sensitivity}
 \title{Sensitivity matrix}
 \usage{
-ef_sensitivity(product)
+ef_sensitivity(product, W)
 }
 \arguments{
 \item{product}{A list of matrix.}

@@ -6,34 +6,41 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // ef_sensitivity_op
-arma::sp_mat ef_sensitivity_op(List products);
-RcppExport SEXP _mglm4twin_ef_sensitivity_op(SEXP productsSEXP) {
+arma::sp_mat ef_sensitivity_op(List products, arma::sp_mat W);
+RcppExport SEXP _mglm4twin_ef_sensitivity_op(SEXP productsSEXP, SEXP WSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< List >::type products(productsSEXP);
-    rcpp_result_gen = Rcpp::wrap(ef_sensitivity_op(products));
+    Rcpp::traits::input_parameter< arma::sp_mat >::type W(WSEXP);
+    rcpp_result_gen = Rcpp::wrap(ef_sensitivity_op(products, W));
     return rcpp_result_gen;
 END_RCPP
 }
 // ef_variability_op
-arma::sp_mat ef_variability_op(arma::sp_mat sensitivity, List W, arma::vec k4);
-RcppExport SEXP _mglm4twin_ef_variability_op(SEXP sensitivitySEXP, SEXP WSEXP, SEXP k4SEXP) {
+arma::sp_mat ef_variability_op(arma::sp_mat sensitivity, List WE, arma::vec k4, arma::vec W);
+RcppExport SEXP _mglm4twin_ef_variability_op(SEXP sensitivitySEXP, SEXP WESEXP, SEXP k4SEXP, SEXP WSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::sp_mat >::type sensitivity(sensitivitySEXP);
-    Rcpp::traits::input_parameter< List >::type W(WSEXP);
+    Rcpp::traits::input_parameter< List >::type WE(WESEXP);
     Rcpp::traits::input_parameter< arma::vec >::type k4(k4SEXP);
-    rcpp_result_gen = Rcpp::wrap(ef_variability_op(sensitivity, W, k4));
+    Rcpp::traits::input_parameter< arma::vec >::type W(WSEXP);
+    rcpp_result_gen = Rcpp::wrap(ef_variability_op(sensitivity, WE, k4, W));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_mglm4twin_ef_sensitivity_op", (DL_FUNC) &_mglm4twin_ef_sensitivity_op, 1},
-    {"_mglm4twin_ef_variability_op", (DL_FUNC) &_mglm4twin_ef_variability_op, 3},
+    {"_mglm4twin_ef_sensitivity_op", (DL_FUNC) &_mglm4twin_ef_sensitivity_op, 2},
+    {"_mglm4twin_ef_variability_op", (DL_FUNC) &_mglm4twin_ef_variability_op, 4},
     {NULL, NULL, 0}
 };
 
