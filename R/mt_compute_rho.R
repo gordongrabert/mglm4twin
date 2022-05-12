@@ -9,6 +9,7 @@
 #' will be computed.
 #' @param n_resp Numeric. Number of response variables.
 #' @keywords internal
+#' @export
 #' @details It is an internal function useful in general for summary
 #' function associated with Twin models.
 

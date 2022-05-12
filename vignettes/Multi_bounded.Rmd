@@ -1,0 +1,235 @@
+---
+title: "Multivariate bounded data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Multivariate bounded data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Abstract
+
+The `mglm4twin` package implements multivariate generalized
+linear models for twin and family data as proposed by Bonat and Hjelmborg (2020).
+The core fit function `mglm4twin` is employed for fitting a set of models. 
+In this introductory vignette we restrict ourselves to model 
+multivariate bounded outcomes. 
+We present a set of special specifications of the standard ACE
+for multivariate bounded traits in the context of twin data. 
+This vignette reproduces the data analysis presented in the Section 5.6 Dataset 6: Multivariate bounded data of Bonat and Hjelmborg (2020). 
+
+## Install and loading the mglm4twin package
+
+To install the stable version of [`mglm4twin`][], use
+`devtools::install_git()`. For more information, visit [mglm4twin/README].
+
+```{r, eval=FALSE}
+library(devtools)
+install_git("wbonat/mglm4twin")
+```
+
+```{r, eval=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+library(mglm4twin)
+packageVersion("mglm4twin")
+```
+
+## Data set
+
+In this example, we simulate a dataset as similar as possible to a real dataset
+concernings three bounded outcomes reflecting mental conditions. The data set 
+consists of 828 (524 DZ and 274 MZ) twin pairs. The outcomes are obtained based 
+on questionaries and includes the Mini Mental State Examination (MMSE) taking values
+on the interval $[0\ldots, 30]$. The second outcome corresponds to depression
+symptomatology which was evaluated based on an adaptation of the depression 
+section of the Cambridge Mental Disorders of the Elderly Examination (CAMDEX). 
+The depression scale used here is a composite of responses to 17 depression items
+and taking integer values in the interval $[0, \ldots, 30]$ and is highly 
+left-skewed in distribution in any population-based sample. The third outcome is a Social Activity 
+scale based on six items that assess the frequency with which the individual is 
+engaged with others and mental pursuits. We opted to simulate such a data set
+because we can show how to simulate the data and make it available for the users.
+For simulating the data set, we are going to use the `SimCorMultRes` package.
+
+```{r}
+## Loading extra packages
+require(Matrix)
+require(SimCorMultRes)
+require(mglm4twin)
+
+## Setting model parameters
+E <- c(0.75, 0.7, 0.65, -0.3, 0.25, -0.4)
+A <- c(0.25,0.3, 0.35, -0.15, 0.20, -0.2)
+C <- rep(0, 6)
+tau = c(E, A, C)
+
+## Twin structure
+DZ = mt_twin(N_DZ = 1, N_MZ = 0, n_resp = 3, model = "ACE")
+MZ = mt_twin(N_DZ = 0, N_MZ = 1, n_resp = 3, model = "ACE")
+Omega_DZ <- as.matrix(mt_matrix_linear_predictor(tau = tau, Z = DZ))
+Omega_MZ <- as.matrix(mt_matrix_linear_predictor(tau = tau, Z = MZ))
+
+## Regression structures
+sex <- c(rep("Male", 220/2), rep("Female", 334/2), 
+         rep("Male", 116/2), rep("Female", 158/2))
+zyg <- c(rep("DZ", 554/2), rep("MZ", 274/2))
+set.seed(123)
+Age <- rbeta(414, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70
+age_std <- (Age - mean(Age))/var(Age)
+X <- model.matrix(~ sex + age_std)
+beta1 <- c(1.6956, 0.0584, -0.2576)
+mu1 <- exp(X%*%beta1)/(1+exp(X%*%beta1))
+beta2 <- c(-1.7930, 0.0875, 0.2382)
+mu2 <- exp(X%*%beta2)/(1+exp(X%*%beta2))
+beta3 <- c(-0.5363, -0.05138, -0.1528)
+mu3 <- exp(X%*%beta3)/(1+exp(X%*%beta3))
+
+## Marginal distributions
+dist <- c("qbeta","qbeta","qbeta")
+invcdfnames <- rep(dist, each = 2)
+
+## Simulating data set
+Y1_MZ <- list()
+Y2_MZ <- list()
+Y3_MZ <- list()
+
+Y1_DZ <- list()
+Y2_DZ <- list()
+Y3_DZ <- list()
+set.seed(181185)
+phi = 5
+for(i in 1:137) {
+  paramslists <- list(
+    m1 = list(shape1 = mu1[i]*phi, shape2 = (1-mu1[i])*phi),
+    m1 = list(shape1 = mu1[i]*phi, shape2 = (1-mu1[i])*phi),
+    m2 = list(shape1 = mu2[i]*phi, shape2 = (1-mu2[i])*phi),
+    m2 = list(shape1 = mu2[i]*phi, shape2 = (1-mu2[i])*phi),
+    m3 = list(shape1 = mu3[i]*phi, shape2 = (1-mu3[i])*phi),
+    m3 = list(shape1 = mu3[i]*phi, shape2 = (1-mu3[i])*phi))
+  Y_MZ <- rnorta(R = 1, cor.matrix = Omega_MZ,
+                 distr = invcdfnames, qparameters = paramslists)
+  Y1_MZ[[i]] <- Y_MZ[1:2]
+  Y2_MZ[[i]] <- Y_MZ[3:4]
+  Y3_MZ[[i]] <- Y_MZ[5:6]
+}
+set.seed(181185)
+for(i in 138:414) {
+  paramslists <- list(
+    m1 = list(shape1 = mu1[i]*phi, shape2 = (1-mu1[i])*phi),
+    m1 = list(shape1 = mu1[i]*phi, shape2 = (1-mu1[i])*phi),
+    m2 = list(shape1 = mu2[i]*phi, shape2 = (1-mu2[i])*phi),
+    m2 = list(shape1 = mu2[i]*phi, shape2 = (1-mu2[i])*phi),
+    m3 = list(shape1 = mu3[i]*phi, shape2 = (1-mu3[i])*phi),
+    m3 = list(shape1 = mu3[i]*phi, shape2 = (1-mu3[i])*phi))
+  Y_DZ <- rnorta(R = 1, cor.matrix = Omega_DZ,
+                 distr = invcdfnames, qparameters = paramslists)
+  Y1_DZ[[i]] <- Y_DZ[1:2]
+  Y2_DZ[[i]] <- Y_DZ[3:4]
+  Y3_DZ[[i]] <- Y_DZ[5:6]
+}
+
+Y1 <- c(do.call(c, Y1_DZ), do.call(c, Y1_MZ))
+Y2 <- c(do.call(c, Y2_DZ), do.call(c, Y2_MZ))
+Y3 <- c(do.call(c, Y3_DZ), do.call(c, Y3_MZ))
+
+data <- data.frame("Y1" = Y1, "Y2" = Y2, "Y3" = Y3, "twin_id" = rep(1:2, 414),
+                   "zyg" = rep(zyg, each = 2), "sex" = rep(sex, each = 2), 
+                   "age_std" = rep(age_std, each = 2))
+```
+
+
+## Model specification
+
+The model specification is done in three steps:
+
+   1. Specifying the linear predictor (mean model).
+   2. Specifying the matrix linear predictor (twin dependence struture).
+   3. Specifying link and variance function suitable to be response variable type.
+
+### Specyfing the linear predictor
+
+In the example we have the covariates sex and age for composing the linear predictor. 
+Thus, the linear predictor is given by
+
+```{r}
+form_Y1 <- c(Y1 ~ sex + age_std)
+form_Y2 <- c(Y2 ~ sex + age_std)
+form_Y3 <- c(Y3 ~ sex + age_std)
+```
+
+### Specyfing the matrix linear predictor
+
+The matrix linear predictor describes the twin dependence structure. The `mglm4twin` package provides a set of pre-specified covariance structures. However, the users can easily specify thein own covariance structure through a linear combination of known matrices. In this example, we are going to specify a set of special cases of the standard ACE models for twin data.
+
+```{r}
+ACE = mt_twin(N_DZ = 554/2, N_MZ = 274/2, n_resp = 3, model = "ACE")
+AE = mt_twin(N_DZ = 554/2, N_MZ = 274/2, n_resp = 3, model = "AE")
+CE = mt_twin(N_DZ = 554/2, N_MZ = 274/2, n_resp = 3, model = "CE")
+E = mt_twin(N_DZ = 554/2, N_MZ = 274/2, n_resp = 3, model = "E")
+```
+
+The function `mt_twin()` has four main arguments: `N_DZ` and `N_MZ` the number of dizygotic and monozygotic twin, respectively. `n_resp` number of response variables, in this case just $1$ and the `model` a string given the model's name.
+It is **extreme important** to note that the data set should be ordered in a way that all DZ twin appear first and then all MZ twin and the twin pair should appear together, i.e. twin 2 after twin 1. 
+
+### Specyfing link and variance functions
+
+The specificantion of the link and variance functions depends on the response variable type. In the case of the bounded data the `mglm4twin`package offers
+the `logit`, `probit`, `cauchit`, `cloglog` and `loglog` link functions. 
+For the variance function the `binomialP` represents the standard binomial variance function, i.e. $\mu(1-\mu)$ which is suitable for bounded outcomes. In this example,
+we follow Bonat and Hjelmborg (2020) and use the `logit` link function and the `binomialP` variance function.
+
+```{r}
+link = rep("logit", 3)
+variance = rep("binomialP", 3)
+```
+
+## Model fitting
+
+The main fitting function in the `mglm4twin` package is the `mglm4twin()` function.
+it was designed to be similar to standard model fitting functions in `R` such as `lm()` and `glm()`. 
+
+```{r, warning = FALSE}
+fit_ACE <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3), 
+                     matrix_pred = ACE, link = link,
+                     variance = variance, 
+                     data = data)
+fit_AE <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3), 
+                    matrix_pred = AE, link = link,
+                    variance = variance, 
+                    data = data)
+fit_CE <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3), 
+                    matrix_pred = CE, link = link,
+                    variance = variance, 
+                    data = data)
+fit_E <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3), 
+                    matrix_pred = E, link = link,
+                    variance = variance, 
+                    data = data)
+```
+
+## Reproducing Table 8 of Bonat and Hjelmborg (2020)
+
+```{r}
+rbind(gof(fit_E), gof(fit_AE), gof(fit_CE), gof(fit_ACE))[,c(1,2,3,5)]
+```
+
+## Reproducing Table 9 of Bonat and Hjelmborg (2020)
+
+Table 9 is done by collecting the results from the model's summary.
+
+```{r}
+summary(fit_AE, model = "AE", biometric = TRUE)
+```
+
+
+
+<!---------------------------------------------------------------------- -->
+
+[`mglm4twin`]: http://github.com/wbonat/mglm4twin
+[mglm4twin/README]: http://github.com/wbonat/mglm4twin/blob/master/README.md

@@ -1,0 +1,255 @@
+---
+title: "BPD and RDS on preterm infants: Bivariate dichotomous data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{BPD and RDS on preterm infants: Bivariate dichotomous data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Abstract
+
+The `mglm4twin` package implements multivariate generalized
+linear models for twin and family data as proposed by Bonat and Hjelmborg (2020).
+The core fit function `mglm4twin` is employed for fitting a set of models. 
+In this introductory vignette we restrict ourselves to model 
+bivariate binary outcomes. We present a set of special specifications of the standard ACE
+for binary trait in the context of twin data. This vignette reproduces the data analysis presented in the Section 5.3 Dataset 3: Bivariate dichotomous data of Bonat and Hjelmborg (2020). 
+
+## Install and loading the mglm4twin package
+
+To install the stable version of [`mglm4twin`][], use
+`devtools::install_git()`. For more information, visit [mglm4twin/README].
+
+```{r, eval=FALSE}
+library(devtools)
+install_git("wbonat/mglm4twin")
+```
+
+```{r, eval=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+library(mglm4twin)
+packageVersion("mglm4twin")
+```
+
+## Data set
+
+In this example, we use the dataset analysed by Feng et al. (2009) regarding bronchopulmonary dysplasia (BPD) and respiratory distress syndrome (RDS) on preterm infants. 
+Both diseases are lung related and expected to have a genetic component. 
+The dataset consists of 200 twin-pairs being 137 DZ and 63 MZ. Additionally, we considered the
+covariates: birth weight (BW), gestation age (GA) and gender (male and female).
+
+```{r}
+data(bpdrds)
+head(bpdrds)
+```
+
+
+## Model specification
+
+The model specification is done in three steps:
+
+   1. Specifying the linear predictor (mean model).
+   2. Specifying the matrix linear predictor (twin dependence structure).
+   3. Specifying link and variance function suitable to response variable type.
+
+### Specyfing the linear predictor
+
+In the **bpdrds** data set we have three covariates available for composing the linear predictor. Thus, the linear predictor is given by
+
+```{r}
+form_BPD <- BPD ~ BW + GA + gender + Group*Twin_pair
+form_RDS <- RDS ~ BW + GA + gender + Group*Twin_pair
+```
+
+It is important to note that in this example we have two outcomes. Consequently, we have to specify a linear predictor for each of them.
+
+### Specyfing the matrix linear predictor
+
+The matrix linear predictor describes the twin dependence structure. The `mglm4twin` package provides a set of pre-specified covariance structures. However, the users can easily specify their own covariance structure through a linear combination of known matrices. In this example, we are going to specify a set of special cases of the standard ACE models for twin data. Furthermore, for comparison purposes we are going to fit univariate and bivariate models. 
+
+```{r}
+## Univariate models
+uni_E <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 1, model = "E")
+uni_AE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 1, model = "AE")
+uni_CE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 1, model = "CE")
+uni_ACE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 1, model = "ACE")
+
+## Bivariate models
+biv_E <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 2, model = "E")
+biv_AE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 2, model = "AE")
+biv_CE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 2, model = "CE")
+biv_ACE <- mt_twin(N_DZ = 137, N_MZ = 63, n_resp = 2, model = "ACE")
+```
+
+### Specyfing link and variance functions
+
+The specificantion of the link and variance functions depends on the response variable type. In the case of the dichotomous data the `mglm4twin`package offers
+the `logit`, `probit`, `cauchit`, `cloglog` and `loglog` link functions. For the variance function the `binomialP` represents the standard binomial variance function, i.e. $\mu(1-\mu)$ which is suitable for binary outcomes. In this example,
+we follow Bonat and Hjelmborg (2020) and use the `logit` link function and the `binomialP` variance function for both outcomes.
+
+```{r}
+link = c("logit", "logit")
+variance = c("binomialP", "binomialP")
+```
+
+It is interesting to note that the user should specify the link and variance functions for each outcome.
+
+## Model fitting
+
+The main fitting function in the `mglm4twin` package is the `mglm4twin()` function.
+It is the same function for univariate and multivariate models. The main difference
+is that now we should pass a vector of linear predictors, link and variance functions.
+In this example, first we are going to fit the univariate models for each response variable and then the bivariate counterparts. 
+
+```{r}
+## Univariate fit
+
+# Univariate E model
+fitE_BPD <- mglm4twin(linear_pred = c(form_BPD), matrix_pred = uni_E,
+                      link = c("logit"), variance = c("binomialP"),
+                      data = bpdrds)
+fitE_RDS <- mglm4twin(linear_pred = c(form_RDS), matrix_pred = uni_E,
+                      link = c("logit"), variance = c("binomialP"),
+                      data = bpdrds)
+
+# Univariate AE model
+fitAE_BPD <- mglm4twin(linear_pred = c(form_BPD), matrix_pred = uni_AE,
+                      link = c("logit"), variance = c("binomialP"),
+                      data = bpdrds)
+fitAE_RDS <- mglm4twin(linear_pred = c(form_RDS), matrix_pred = uni_AE,
+                       link = c("logit"), variance = c("binomialP"),
+                       data = bpdrds)
+
+# Univariate CE model
+fitCE_BPD <- mglm4twin(linear_pred = c(form_BPD), matrix_pred = uni_CE,
+                       link = c("logit"), variance = c("binomialP"),
+                       data = bpdrds)
+fitCE_RDS <- mglm4twin(linear_pred = c(form_RDS), matrix_pred = uni_CE,
+                       link = c("logit"), variance = c("binomialP"),
+                       data = bpdrds)
+
+# Univariate ACE model
+fitACE_BPD <- mglm4twin(linear_pred = c(form_BPD), matrix_pred = uni_ACE,
+                       link = c("logit"), variance = c("binomialP"),
+                       data = bpdrds)
+fitACE_RDS <- mglm4twin(linear_pred = c(form_RDS), matrix_pred = uni_ACE,
+                        link = c("logit"), variance = c("binomialP"),
+                        data = bpdrds)
+
+## Bivariate fit
+
+# E model
+fitE_biv <- mglm4twin(linear_pred = c(form_BPD, form_RDS), matrix_pred = biv_E, 
+                      link = c("logit","logit"), 
+                      variance = c("binomialP","binomialP"), 
+                      data = bpdrds)
+# AE model
+fitAE_biv <- mglm4twin(linear_pred = c(form_BPD, form_RDS), matrix_pred = biv_AE, 
+                       link = c("logit","logit"), 
+                       variance = c("binomialP","binomialP"), 
+                       data = bpdrds)
+# CE model
+fitCE_biv <- mglm4twin(linear_pred = c(form_BPD, form_RDS), matrix_pred = biv_CE, 
+                       link = c("logit","logit"), 
+                       variance = c("binomialP","binomialP"), 
+                       data = bpdrds)
+# ACE model
+fitACE_biv <- mglm4twin(linear_pred = c(form_BPD, form_RDS), matrix_pred = biv_ACE, 
+                        link = c("logit", "logit"),
+                        variance = c("binomialP","binomialP"),
+                        data = bpdrds)
+```
+
+## Model output
+
+The `mglm4twin` package offers a general `summary()` function that can be customized to show the dispersion components (standard output) or measures of interest (`biometric = TRUE`) as genetic correlation and heritability. 
+
+## Model comparison
+
+For model comparison the `mglm4twin` package offers the `gof()`function for computing
+pseudo version of the log-likelihood, AIC, BIC and pKLIC information criterio.
+It is intereting to note that the `gof()`function allows to combine two univariate
+fits for jointly computing the goodness-of-fit measures under the assumption of
+zero correlation between the outcomes.
+
+```{r}
+## Univariate models
+uni <- round(rbind("E" = gof(list(fitE_BPD, fitE_RDS)), 
+                   "AE" = gof(list(fitAE_BPD, fitAE_RDS)) ,
+                   "CE" = gof(list(fitCE_BPD, fitCE_RDS)),
+                   "ACE" = gof(list(fitACE_BPD, fitACE_RDS))), 2)
+
+## Bivariate models
+multi <- round(rbind("E" = gof(fitE_biv), "AE" = gof(fitAE_biv), 
+                     "CE" = gof(fitCE_biv), "ACE" = gof(fitACE_biv)), 2)
+
+```
+
+## Reproducing Table 3 of Bonat and Hjelmborg (2020)
+
+```{r, echo = FALSE, results = "hide"}
+Table3 <- cbind(t(uni)[c(1,3,5,2),c(4,3,2,1)], t(multi)[c(1,3,5,2),c(4,3,2,1)])
+```
+
+```{r}
+Table3
+```
+
+## Reproducing Table 4 of Bonat and Hjelmborg (2020)
+
+For reprocucing Table 4 of Bonat and Hjelmborg (2020), we have to compute the
+genetic and environment correlation along with the heritability, environmentability
+and bivariate heritability and environmentability. The `mglm4twin`offers some
+facilities for such computation, see the code below.
+
+```{r}
+## Genetic correlation
+tab_rho_a <- mt_compute_rho(Estimates = coef(fitAE_biv, model = "AE"), 
+                            vcov = vcov(fitAE_biv, model = "AE"),
+                            component = "A", n_resp = 2)
+
+## Environment correlation
+tab_rho_e <- mt_compute_rho(Estimates = coef(fitAE_biv, model = "AE"), 
+                            vcov = vcov(fitAE_biv, model = "AE"),
+                            component = "E", n_resp = 2)
+```
+
+The other measures can be extracted from the `summary()`.
+
+```{r, echo = FALSE}
+output <- summary(fitAE_biv, biometric = TRUE, model = "AE")
+# Univariate heritability
+h2 <- output$A_main$Estimates
+h2_std <- output$A_main$std.error
+# Bivariate heritability
+h_biv <- output$A_cross$Estimates
+h_biv_std <- output$A_cross$std.error
+# Univariate environmentability
+e2 <- output$Env_main$Estimates
+e2_std <- output$Env_main$std.error
+e_biv <- output$Env_cross$Estimates
+e_biv_std <- output$Env_cross$std.error
+HH <- c(h2[1],h2_std[1],h2[2],h2_std[2],h_biv, h_biv_std)
+EE <- c(e2[1],e2_std[1],e2[2],e2_std[2],e_biv, e_biv_std)
+G <- c(rep(NA,4), tab_rho_a$Estimates, tab_rho_a$std.error)
+E <- c(rep(NA,4), tab_rho_e$Estimates, tab_rho_e$std.error)
+Table4 <- round(rbind(HH,EE,G,E), 2)
+colnames(Table4) <- c("BPD", "BPD_std", "RDS", "RDS_std", "BPD_RDS", "BPD_RDS_std")
+rownames(Table4) <- c("Heritability", "Environmentability", "Genetic Cor", "Environment Cor")
+```
+
+```{r}
+Table4
+```
+
+<!---------------------------------------------------------------------- -->
+
+[`mglm4twin`]: http://github.com/wbonat/mglm4twin
+[mglm4twin/README]: http://github.com/wbonat/mglm4twin/blob/master/README.md

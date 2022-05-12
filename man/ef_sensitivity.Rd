@@ -8,6 +8,8 @@ ef_sensitivity(product, W)
 }
 \arguments{
 \item{product}{A list of matrix.}
+
+\item{W}{weights.}
 }
 \value{
 The sensitivity matrix associated with the Pearson estimating

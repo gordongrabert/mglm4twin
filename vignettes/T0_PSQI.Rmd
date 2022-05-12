@@ -1,0 +1,169 @@
+---
+title: "Sleep’s quality: Mixed types of outcomes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Sleep’s quality: Mixed types of outcomes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Abstract
+
+The `mglm4twin` package implements multivariate generalized
+linear models for twin and family data as proposed by Bonat and Hjelmborg (2020).
+The core fit function `mglm4twin` is employed for fitting a set of models. 
+In this introductory vignette we restrict ourselves to model 
+mixed types of outcomes. We present a set of special specifications of the standard ACE
+for the mixed of continuous and bounded traits in the context of twin data. 
+This vignette reproduces the data analysis presented in the Section 5.5 
+Dataset 5: Mixed types of traits data of Bonat and Hjelmborg (2020). 
+
+## Install and loading the mglm4twin package
+
+To install the stable version of [`mglm4twin`][], use
+`devtools::install_git()`. For more information, visit [mglm4twin/README].
+
+```{r, eval=FALSE}
+library(devtools)
+install_git("wbonat/mglm4twin")
+```
+
+```{r, eval=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+library(mglm4twin)
+packageVersion("mglm4twin")
+```
+
+## Data set
+
+The data set concerning sleep’s quality in a sample of 250 (135 DZ and 116 MZ) 
+Danish twin pairs. The traits are cortisone levels when waking up (T0) and PSQI 
+(Pittsburgh Sleep Quality Index). The first one is a continuous trait, while the 
+second one is a scale varying from 0 to 21 (slower values better sleep’s quality).
+The goal of this example is to show how to deal with mixed types of traits in the 
+context of twin data. It is a simulated data set based on the parameter estimates
+of the real data fit. 
+
+```{r}
+data(t0psqi)
+head(t0psqi)
+```
+
+
+## Model specification
+
+The model specification is done in three steps:
+
+   1. Specifying the linear predictor (mean model).
+   2. Specifying the matrix linear predictor (twin dependence struture).
+   3. Specifying link and variance function suitable to be response variable type.
+
+### Specyfing the linear predictor
+
+In the **t0psqi** data set we have the covariates `Age`, `Type`, `Gender` and 
+`Group` for composing the linear predictor for both outcomes. 
+Thus, the linear predictors are given by
+
+```{r}
+form_T0 <- T0 ~ Age + Gender + Group + Type*Twin_pair
+form_PSQI <- PSQI ~ Age + Gender + Group + Type*Twin_pair
+```
+
+### Specyfing the matrix linear predictor
+
+The matrix linear predictor describes the twin dependence structure. The `mglm4twin` package provides a set of pre-specified covariance structures. However, the users can easily specify thein own covariance structure through a linear combination of known matrices. In this example, we are going to specify a set of special cases of the standard ACE models for twin data.
+
+```{r}
+E <- mt_twin(N_DZ = 135, N_MZ = 116, n_resp = 2, model = "E")
+AE <- mt_twin(N_DZ = 135, N_MZ = 116, n_resp = 2, model = "AE")
+CE <- mt_twin(N_DZ = 135, N_MZ = 116, n_resp = 2, model = "CE")
+ACE <- mt_twin(N_DZ = 135, N_MZ = 116, n_resp = 2, model = "ACE")
+```
+
+The function `mt_twin()` has four main arguments: `N_DZ` and `N_MZ` the number 
+of dizygotic and monozygotic twin, respectively. `n_resp` number of response 
+variables, in this case $1$ and the `model` a string given the model's name.
+It is **extreme important** to note that the data set should be ordered in a way 
+that all DZ twin appear first and then all MZ twin and the twin pair should 
+appear together, i.e. twin 2 after twin 1. 
+
+## Model fitting
+
+The main fitting function in the `mglm4twin` package is the `mglm4twin()` function.
+it was designed to be similar to standard model fitting functions in `R` such as `lm()` and `glm()`. In this example, we are going to fit Gaussian bivariate models and
+a more felxible model where we use a Tweedie model for the T0 trait and
+a flexible quasi-beta model for the PSQI index. We opted to do this, because
+Gaussian models are a frequently choice for this types of data.
+
+
+
+```{r}
+## Gaussian model (link = 'identity' and variance = 'constant')
+Gauss_E <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                     matrix_pred = E, data = t0psqi)
+Gauss_AE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                      matrix_pred = AE, data = t0psqi)
+Gauss_CE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                      matrix_pred = CE, data = t0psqi)
+Gauss_ACE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                       matrix_pred = ACE, data = t0psqi)
+
+## Mixed types
+fit_E <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                   matrix_pred = E, 
+                   link = c("log","logit"), 
+                   variance = c("tweedie","binomialP"), 
+                   control_algorithm = list(tuning = 0.25, max_iter = 100),
+                   power_fixed = c(F,F), data = t0psqi)
+fit_AE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                    matrix_pred = AE, 
+                    link = c("log","logit"), 
+                    variance = c("tweedie","binomialP"), 
+                    control_algorithm = list(tuning = 0.25, max_iter = 100),
+                    power_fixed = c(F,F), data = t0psqi)
+fit_CE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                    matrix_pred = CE, 
+                    link = c("log","logit"), 
+                    variance = c("tweedie","binomialP"), 
+                    control_algorithm = list(tuning = 0.25, max_iter = 100),
+                    power_fixed = c(F,F), data = t0psqi)
+fit_ACE <- mglm4twin(linear_pred = c(form_T0,  form_PSQI), 
+                     matrix_pred = ACE, 
+                     link = c("log","logit"), 
+                     variance = c("tweedie","binomialP"), 
+                     control_algorithm = list(tuning = 0.25, max_iter = 100),
+                     power_fixed = c(F,F), data = t0psqi)
+```
+
+## Reproducing Table 6 of Bonat and Hjelmborg (2020)
+
+```{r, echo = FALSE, results = "hide"}
+Table6 <- cbind(rbind(gof(Gauss_E), gof(Gauss_AE), gof(Gauss_CE), 
+                      gof(Gauss_ACE))[,-c(4)],
+                rbind(gof(fit_E), gof(fit_AE), gof(fit_CE), 
+                      gof(fit_ACE))[,-c(4)])
+
+```
+
+```{r}
+Table6
+```
+
+## Reproducing Table 7 of Bonat and Hjelmborg (2020)
+
+Table 7 is easily done by collecting the values from the model's summary.
+
+```{r}
+summary(fit_AE, model = "AE", biometric = TRUE)
+```
+
+<!---------------------------------------------------------------------- -->
+
+[`mglm4twin`]: http://github.com/wbonat/mglm4twin
+[mglm4twin/README]: http://github.com/wbonat/mglm4twin/blob/master/README.md

@@ -9,6 +9,7 @@
 library(devtools)
 library(withr)
 library(knitr)
+library(rmarkdown)
 
 # Load the package (to make functions available).
 load_all()
@@ -18,10 +19,11 @@ ls("package:mglm4twin")
 packageVersion("mglm4twin")
 
 # How many objects in each class.
-table(sapply(ls("package:mglm4twin"),
-             function(x) class(eval(parse(text=x)))))
+#table(sapply(ls("package:mglm4twin"),
+#             function(x) class(eval(parse(text=x)))))
 
 #-----------------------------------------------------------------------
+devtools::check_rhub(env_vars=c(R_COMPILE_AND_INSTALL_PACKAGES = "always"))
 # Check.
 
 load_all()
