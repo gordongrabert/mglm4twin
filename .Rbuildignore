@@ -17,3 +17,6 @@ downloads/
 ^\.\#*
 Rplots.pdf
 CONTRIBUTING.md
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

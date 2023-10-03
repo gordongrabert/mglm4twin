@@ -13,7 +13,7 @@ pkg.win <- paste0(pkg.name, ver, ".zip")
 [![Build Status](https://travis-ci.org/wbonat/mglm4twin.svg?branch=master)](https://travis-ci.org/wbonat/mglm4twin)
 
 The `mglm4twin` package fits multivariate generalized linear models 
-for twin and family data. (Bonat and Hjelmborg, 2018).
+for twin and family data. (Bonat and Hjelmborg, 2020).
 
 ## Introduction
 
