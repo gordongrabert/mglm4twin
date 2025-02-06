@@ -41,7 +41,7 @@ ef_variability <- function(sensitivity, product, inv_C, C, res, W) {
   #                            sum(k4 * diag(W[[i]]) * diag(W[[j]])))
   #    }
   #}
-  Variability <- forceSymmetric(Variability, uplo = FALSE)
+  Variability <- forceSymmetric(Variability, uplo = "L")
   return(Variability)
 }
 
