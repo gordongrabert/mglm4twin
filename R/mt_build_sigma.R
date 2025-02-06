@@ -31,6 +31,7 @@
 mt_build_sigma <- function(mu, tau, power, Z, Ntrial,
                            variance, power_fixed, inverse = FALSE,
                            compute_derivative_beta = TRUE) {
+  #browser()
   mu_list <- lapply(mu, function(x) x$mu)
   D_list <- lapply(mu, function(x) x$D)
   output <- list()
@@ -79,7 +80,8 @@ mt_build_sigma <- function(mu, tau, power, Z, Ntrial,
   output$D_Sigma <- c(output$D_Sigma, D_Sigma_tau)
   output$Sigma <- Matrix::forceSymmetric(Sigma)
   if(inverse == TRUE) {
-    output$inv_Sigma <- Matrix::chol2inv(Matrix::chol(output$Sigma))
+   # output$inv_Sigma <- Matrix::chol2inv(Matrix::chol(output$Sigma))
+    output$inv_Sigma <- solve(output$Sigma)
   }
   if(compute_derivative_beta == TRUE) {
     D_V_sqrt_mu <- lapply(V.features, function(x)x$D_V_sqrt_mu)

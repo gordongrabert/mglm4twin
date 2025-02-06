@@ -72,6 +72,7 @@ fit_mglm <- function(list_initial, list_link, list_variance,
                       y_vec, correct = FALSE,
                       max_iter = 20, tol = 0.001, method = "chaser",
                       tuning = 1, verbose = FALSE, weights) {
+
   ## Diagonal matrix with weights
   W <- Diagonal(length(y_vec), weights)
   ## Transformation from list to vector
