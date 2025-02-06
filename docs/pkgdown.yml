@@ -1,0 +1,11 @@
+pandoc: '3.2'
+pkgdown: 2.1.1
+pkgdown_sha: ~
+articles:
+  BPD_RDS: BPD_RDS.html
+  Body_Mass_Index: Body_Mass_Index.html
+  Multi_bounded: Multi_bounded.html
+  Psychiatric_disorder: Psychiatric_disorder.html
+  T0_PSQI: T0_PSQI.html
+  Weight_height: Weight_height.html
+last_built: 2025-02-02T16:13Z
