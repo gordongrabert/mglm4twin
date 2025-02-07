@@ -19,6 +19,7 @@ GRM <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
 
 # GRM <- nearPD(GRM)$mat
 
+# TODO extend to 3 phenotypes
 
 # Genetic Covariance Matrix (Sigma_G)
 Sigma_G <- matrix(c(0.7, 0.5,  # Trait 1 variance & covariance
