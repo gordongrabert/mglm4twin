@@ -257,7 +257,49 @@ cov_matrix_E <- matrix(c(
 
 cov_matrix_E
 
+##### Estimate runtime for phenotype c = 1 #####
 
+
+# Define sequence of n values
+n_values <- seq(100, 900, by = 200)  # Adjust upper limit if needed
+times_1 <- numeric(length(n_values))  # Empty vector to store times
+
+# Loop over different values of n
+for (i in seq_along(n_values)) {
+  n <- n_values[i]  # Set current n
+
+  start_time <- Sys.time()  # Start timing
+
+  # Run the model for the current n
+  res <- mglm4twin(
+    linear_pred = c(linear_pred_1),
+    matrix_pred = c(grm_dsC[1:n, 1:n], I[1:n, 1:n]),
+    data = as.data.frame(pheno[1:n,])
+  )
+
+  end_time <- Sys.time()  # End timing
+
+  times_1[i] <- as.numeric(difftime(end_time, start_time, units = "secs"))  # Store elapsed time
+}
+
+# Combine results into a data frame
+time_results_1 <- data.frame(n = n_values, Time_in_seconds = times_1)
+
+# Print results
+print(time_results_1)
+
+# Optional: Plot computation time vs n
+library(ggplot2)
+ggplot(time_results_1, aes(x = n, y = Time_in_seconds)) +
+  geom_line() + geom_point() +
+  labs(title = "Computation Time vs n, Phenotypes = 1, Type = Gaussian",
+       x = "Sample Size (n)",
+       y = "Time (seconds)") +
+  theme_minimal()
+
+
+
+##### Estimate runtime for phenotype c = 2 ####
 # Define sequence of n values
 n_values <- seq(100, 900, by = 200)  # Adjust upper limit if needed
 times <- numeric(length(n_values))  # Empty vector to store times
@@ -299,10 +341,6 @@ ggplot(time_results, aes(x = n, y = Time_in_seconds)) +
        x = "Sample Size (n)",
        y = "Time (seconds)") +
   theme_minimal()
-
-
-
-
 
 
 
