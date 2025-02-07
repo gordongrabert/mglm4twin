@@ -81,7 +81,12 @@ mt_build_sigma <- function(mu, tau, power, Z, Ntrial,
   output$Sigma <- Matrix::forceSymmetric(Sigma)
   if(inverse == TRUE) {
     # TODO
-    output$inv_Sigma <- Matrix::chol2inv(Matrix::chol(output$Sigma))
+    output$inv_Sigma <- tryCatch({
+      Matrix::chol2inv(Matrix::chol(output$Sigma))
+    }, error = function(e) {
+      warning("Cholesky decomposition failed. Using generalized inverse instead.")
+      as(MASS::ginv(as.matrix(output$Sigma)), "dgCMatrix")  # Fallback to pseudo-inverse
+    })
   }
   if(compute_derivative_beta == TRUE) {
     D_V_sqrt_mu <- lapply(V.features, function(x)x$D_V_sqrt_mu)
