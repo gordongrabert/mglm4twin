@@ -348,3 +348,13 @@ ggplot(time_results, aes(x = n, y = Time_in_seconds)) +
 res <- mglm4twin(linear_pred = c(linear_pred_1),
                  matrix_pred = c(A),
                  data = as.data.frame(pheno))
+
+
+
+
+
+
+
+
+
+
