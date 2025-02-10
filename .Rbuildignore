@@ -17,3 +17,4 @@ downloads/
 ^\.\#*
 Rplots.pdf
 CONTRIBUTING.md
+vignettes/GRM_test.R
