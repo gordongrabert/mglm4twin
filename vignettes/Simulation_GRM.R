@@ -19,17 +19,21 @@ n <- 926 # Number of individuals
 GRM <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
                maf=0.05, method="VanRaden")
 
+# Search next PD matrix
+GRM <- nearPD(GRM)$mat
+
 
 # Genetic Covariance Matrix (Sigma_G)
-Sigma_G <- matrix(c(0.5, 0.5, 0.3,  # Trait 1 variance & covariance
-                    0.5, 0.3, 0.1,
-                    0.3, 0.1, 0.2), # Trait 2 variance & covariance
+Sigma_G <- matrix(c(0.6, 0.3, 0.2,  # Trait 1 variance & covariance
+                    0.3, 0.5, 0.25, # Trait 2 variance & covariance
+                    0.2, 0.25, 0.4),# Trait 3 variance & covariance
                   nrow = 3, byrow = TRUE)
 
+
 # Environmental Covariance Matrix (Sigma_E)
-Sigma_E <- matrix(c(0.3, 0.2, 0.6,  # Trait 1 variance & covariance
-                    0.2, 0.4, 0.1,
-                    0.6, 0.1, 0.3), # Trait 2 variance & covariance
+Sigma_E <- matrix(c(0.5, 0.2, 0.3,  # Trait 1 variance & covariance
+                    0.2, 0.6, 0.15, # Trait 2 variance & covariance
+                    0.3, 0.15, 0.5),# Trait 3 variance & covariance
                   nrow = 3, byrow = TRUE)
 
 # Step 2: Simulate from Gaussian Copula
@@ -38,11 +42,11 @@ Sigma_E <- matrix(c(0.3, 0.2, 0.6,  # Trait 1 variance & covariance
 # Step 2: Construct the Full Covariance Matrix
 Sigma_total <- as.matrix(kronecker(GRM, Sigma_G) + kronecker(diag(n), Sigma_E))
 
-# Search next PD matrix
-Sigma_total <- nearPD(Sigma_total)$mat
-
-# Convert to a correlation matrix
-# Sigma_total <- cov2cor(Sigma_total)
+# # Search next PD matrix
+# Sigma_total <- nearPD(Sigma_total)$mat
+#
+# # Convert to a correlation matrix
+# # Sigma_total <- cov2cor(Sigma_total)
 
 # Simulate Gaussian data
 pheno = mvrnorm(n = 1, mu = rep(0, nrow(Sigma_total)), Sigma = Sigma_total)
@@ -54,8 +58,8 @@ pheno_col <- matrix(pheno, ncol = 3, byrow = TRUE)
 data = as.data.frame(pheno_col)
 
 # Prepare for mglm4twin
-V1 = data$V1
-V2 = data$V2
+
+# Fixed effects
 
 linear_pred_1 <- V1 ~ 1
 linear_pred_2 <- V2 ~ 1
@@ -69,34 +73,37 @@ res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
                  matrix_pred = c(mat),
                  data = as.data.frame(data))
 
-A1 <- res$Covariance[1]
-A2 <- res$Covariance[2]
-A3 <- res$Covariance[3]
-E1 <- res$Covariance[4]
-E2 <- res$Covariance[5]
-E3 <- res$Covariance[6]
+A11 <- res$Covariance[1]
+A22 <- res$Covariance[2]
+A33 <- res$Covariance[3]
+A21 <- res$Covariance[4]
+A31 <- res$Covariance[5]
+A32 <- res$Covariance[6]
+
+E11 <- res$Covariance[7]
+E22 <- res$Covariance[8]
+E33 <- res$Covariance[9]
+E21 <- res$Covariance[10]
+E31 <- res$Covariance[11]
+E32 <- res$Covariance[12]
 
 
-cov_table <- tibble::tibble(
-  Component = c("A1", "A2", "A3", "E1", "E2", "E3"),
-  Covariance = c(A1, A2, A3, E1, E2, E3)
-)
-
-cov_table
 
 # Construct covariance matrix
 cov_matrix_A <- matrix(c(
-  A1, A3,
-  A3, A2
-), nrow = 2, byrow = TRUE)
+  A11, A21, A31,
+  A21, A22, A32,
+  A31, A32, A33
+), nrow = 3, byrow = TRUE)
 
 cov_matrix_A
 
 # Construct covariance matrix
 cov_matrix_E <- matrix(c(
-  E1, E3,
-  E3, E2
-), nrow = 2, byrow = TRUE)
+  E11, E21, E31,
+  E21, E22, E32,
+  E31, E32, E33
+), nrow = 3, byrow = TRUE)
 
 cov_matrix_E
 
