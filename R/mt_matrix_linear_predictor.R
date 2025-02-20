@@ -39,6 +39,7 @@ mt_matrix_linear_predictor <- function(tau, Z) {
     if (length(Z) != length(tau)) {
         stop("Incorrect number of parameters")
     }
+
     output <- mapply("*", Z, tau, SIMPLIFY = FALSE)
     output <- Reduce("+", output)
     return(output)
