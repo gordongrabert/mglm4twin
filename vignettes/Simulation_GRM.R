@@ -6,6 +6,7 @@ require(ggplot2)
 require(ggExtra)
 require(AGHmatrix)
 require(MASS)
+require(mvnfast)
 
 
 #### Use SNP data from AGHmatrix #####
@@ -21,6 +22,16 @@ GRM <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
 
 # Search next PD matrix
 GRM <- nearPD(GRM)$mat
+
+
+### Alternative
+
+load("~/Downloads/G.large.RData")
+n = 5000
+GRM <- G.large
+str(GRM)
+
+
 
 
 # Genetic Covariance Matrix (Sigma_G)
@@ -49,7 +60,8 @@ Sigma_total <- as.matrix(kronecker(GRM, Sigma_G) + kronecker(diag(n), Sigma_E))
 # # Sigma_total <- cov2cor(Sigma_total)
 
 # Simulate Gaussian data
-pheno = mvrnorm(n = 1, mu = rep(0, nrow(Sigma_total)), Sigma = Sigma_total)
+#pheno = mvrnorm(n = 1, mu = rep(0, nrow(Sigma_total)), Sigma = Sigma_total)
+pheno = rmvn(n = 1, mu = rep(0, nrow(Sigma_total)), sigma = Sigma_total, ncores = 9)
 
 # Reshape the vector into a matrix with 2 columns (will create pairs)
 pheno_col <- matrix(pheno, ncol = 3, byrow = TRUE)
@@ -245,7 +257,7 @@ mt_evd <- function(n, grm, n_resp, resp.m = NULL, model, n_pc = 20, formula = NU
 evdgrm <- eigen(GRM)
 plot(evdgrm$values)
 
-mat <- mt_evd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col), n_pc = 30, model = "AE", data = data)
+mat <- mt_evd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col), n_pc = 3000, model = "AE", data = data)
 
 # Prepare for mglm4twin
 
@@ -298,7 +310,14 @@ cov_matrix_E
 
 
 
-
+# Methods for Approximate Block Diagonalization
+# Spectral Clustering on Eigenvalues: Identify clusters in the spectrum of
+# 𝐴
+# A and use them to define block structure.
+# Reordering Algorithms: Methods like Reverse Cuthill-McKee minimize fill-in and create near-block-diagonal structures.
+# Low-rank Approximations: Using truncated SVD or Nyström methods to approximate
+# 𝐴
+# A as block diagonal.
 
 
 
