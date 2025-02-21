@@ -1,7 +1,7 @@
 ## Loading extra packages
 require(Matrix)
 require(SimCorMultRes)
-require(mglm4twin)
+require(mglm4twin) ### devtools::load_all()
 require(ggplot2)
 require(ggExtra)
 require(AGHmatrix)
@@ -23,15 +23,9 @@ GRM <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
 # Search next PD matrix
 GRM <- nearPD(GRM)$mat
 
-
-### Alternative
-
-load("~/Downloads/G.large.RData")
-n = 5000
-GRM <- G.large
-str(GRM)
-
-
+pine.eigen <- eigen(GRM)
+plot(pine.eigen$values)
+title(main = "loblolly pine GRM")
 
 
 # Genetic Covariance Matrix (Sigma_G)
@@ -47,23 +41,19 @@ Sigma_E <- matrix(c(0.5, 0.2, 0.3,  # Trait 1 variance & covariance
                     0.3, 0.15, 0.5),# Trait 3 variance & covariance
                   nrow = 3, byrow = TRUE)
 
-# Step 2: Simulate from Gaussian Copula
-# Construct full covariance matrix for copula
 
 # Step 2: Construct the Full Covariance Matrix
 Sigma_total <- as.matrix(kronecker(GRM, Sigma_G) + kronecker(diag(n), Sigma_E))
 
-# # Search next PD matrix
-# Sigma_total <- nearPD(Sigma_total)$mat
-#
-# # Convert to a correlation matrix
-# # Sigma_total <- cov2cor(Sigma_total)
-
 # Simulate Gaussian data
+
+# mvrnorm() from MASS package might be considerably slower
 #pheno = mvrnorm(n = 1, mu = rep(0, nrow(Sigma_total)), Sigma = Sigma_total)
+
+# you may need to adjust number of cores
 pheno = rmvn(n = 1, mu = rep(0, nrow(Sigma_total)), sigma = Sigma_total, ncores = 9)
 
-# Reshape the vector into a matrix with 2 columns (will create pairs)
+# Reshape the vector into a matrix with n columns
 pheno_col <- matrix(pheno, ncol = 3, byrow = TRUE)
 
 # Create data frame
@@ -73,17 +63,22 @@ data = as.data.frame(pheno_col)
 
 # Fixed effects
 
+# When there are no fixed effects
+
 linear_pred_1 <- V1 ~ 1
 linear_pred_2 <- V2 ~ 1
 linear_pred_3 <- V3 ~ 1
 
 n <- 926 # Number of individuals
 
+# Build matrix linear predictor
 mat <- mt_grm(n = n, grm = GRM, n_resp = 3, model = "AE", data = data)
 
 res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
                  matrix_pred = c(mat),
                  data = as.data.frame(data))
+
+# Extract estimated variances and covariances
 
 A11 <- res$Covariance[1]
 A22 <- res$Covariance[2]
@@ -100,8 +95,7 @@ E31 <- res$Covariance[11]
 E32 <- res$Covariance[12]
 
 
-
-# Construct covariance matrix
+# Construct estimated covariance matrix A
 cov_matrix_A <- matrix(c(
   A11, A21, A31,
   A21, A22, A32,
@@ -110,7 +104,7 @@ cov_matrix_A <- matrix(c(
 
 cov_matrix_A
 
-# Construct covariance matrix
+# Construct estimated covariance matrix E
 cov_matrix_E <- matrix(c(
   E11, E21, E31,
   E21, E22, E32,
@@ -120,8 +114,9 @@ cov_matrix_E <- matrix(c(
 cov_matrix_E
 
 
+### For checking runtime for different sample sizes ##
 
-##### Estimate runtime for phenotype c = 2 ####
+##### Estimate runtime for phenotype c = 3 ####
 # Define sequence of n values
 n_values <- seq(100, 900, by = 200)  # Adjust upper limit if needed
 times <- numeric(length(n_values))  # Empty vector to store times
@@ -159,28 +154,11 @@ ggplot(time_results, aes(x = n, y = Time_in_seconds)) +
   theme_minimal()
 
 
+
+#### Speeding up computation by using Eigenvalue decomposition procedure by De Vlaming et al. (2022)  ####
+
+
 ##### EVD of A ####
-ComputationalComplexity <- function(A, Y, L = 20) {
-
-  A = GRM
-  Y = rnorm(nrow(GRM), 0)
-  L = 20
-
-  # Eigen decomposition of A
-  evd <- eigen(A, symmetric = TRUE)
-  Q <- evd$vectors
-  lambda <- evd$values
-
-  # Select P and D matrices
-  n <- length(lambda) - L
-  P <- Q[, (L + 1):length(lambda)]
-  D <- diag(lambda[(L + 1):length(lambda)])
-
-  # Transform data matrix Y
-  transformed_Y <- t(P) %*% Y
-
-  return(list(P = P, D = D, transformed_Y = transformed_Y))
-}
 
 mt_evd <- function(n, grm, n_resp, resp.m = NULL, model, n_pc = 20, formula = NULL, data = NULL){
 
@@ -254,10 +232,7 @@ mt_evd <- function(n, grm, n_resp, resp.m = NULL, model, n_pc = 20, formula = NU
 }
 
 
-evdgrm <- eigen(GRM)
-plot(evdgrm$values)
-
-mat <- mt_evd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col), n_pc = 3000, model = "AE", data = data)
+mat <- mt_evd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col), n_pc = 20, model = "AE", data = data)
 
 # Prepare for mglm4twin
 
@@ -309,15 +284,6 @@ cov_matrix_E <- matrix(c(
 cov_matrix_E
 
 
-
-# Methods for Approximate Block Diagonalization
-# Spectral Clustering on Eigenvalues: Identify clusters in the spectrum of
-# 𝐴
-# A and use them to define block structure.
-# Reordering Algorithms: Methods like Reverse Cuthill-McKee minimize fill-in and create near-block-diagonal structures.
-# Low-rank Approximations: Using truncated SVD or Nyström methods to approximate
-# 𝐴
-# A as block diagonal.
 
 
 
