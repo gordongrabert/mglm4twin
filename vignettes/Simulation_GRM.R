@@ -411,3 +411,233 @@ cov_matrix_E <- matrix(c(
 cov_matrix_E
 
 
+###### GRM Tensor model ####
+
+require(TensorTools)
+
+
+#### Use SNP data from AGHmatrix #####
+
+data(snp.pine)
+
+# Step 1: Define Sample Size & Covariance Matrices
+n <- 926 # Number of individuals
+
+#Computing the additive relationship matrix based on VanRaden 2008
+GRMa <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
+               maf=0.05, method="VanRaden")
+
+# Search next PD matrix
+GRMa <- nearPD(GRMa)$mat
+
+
+#Computing the dominance relationship matrix based on VanRaden 2008
+GRMd <- Gmatrix(SNPmatrix=snp.pine, missingValue=-9,
+                maf=0.05, method="Su")
+
+# Search next PD matrix
+GRMd <- nearPD(GRMd)$mat
+
+# Additive-by-Additive Interactions
+
+GRMaa <- GRMa * GRMa
+
+# Constructing the tensor with additive, dominance, and interaction components
+GRMtensor <- array(c(as.matrix(GRMa), as.matrix(GRMd), as.matrix(GRMaa)),
+                   dim = c(nrow(GRMa), ncol(GRMa), 3))
+
+dim(GRMtensor)
+
+# Convert to tensor format
+GRMtensor <- as.Tensor(GRMtensor)
+dim(GRMtensor)
+
+# Eigen decomposition of the tensor
+teigen <- tEIG(GRMtensor, "dst")
+
+A_eigen <- teigen$D$data[, , 1]
+D_eigen <- teigen$D$data[, , 2]
+AA_eigen <- teigen$D$data[, , 3]
+
+
+pine.eigen <- eigen(GRMaa)
+plot(pine.eigen$values)
+title(main = "loblolly pine GRM")
+
+
+# Genetic Covariance Matrix (Sigma_A)
+Sigma_A <- matrix(c(0.6, 0.3, 0.2,
+                    0.3, 0.5, 0.25,
+                    0.2, 0.25, 0.4),
+                  nrow = 3, byrow = TRUE)
+
+# Genetic Covariance Matrix (Sigma_D)
+Sigma_D <- matrix(c(0.3, 0.2, 0.1,
+                    0.2, 0.4, 0.15,
+                    0.1, 0.15, 0.3),
+                  nrow = 3, byrow = TRUE)
+
+# Genetic Covariance Matrix (Sigma_AA)
+Sigma_AA <- matrix(c(0.4, 0.1, 0.2,
+                     0.1, 0.35, 0.1,
+                     0.2, 0.1, 0.5),
+                   nrow = 3, byrow = TRUE)
+
+# Environmental Covariance Matrix (Sigma_E)
+Sigma_E <- matrix(c(0.5, 0.2, 0.3,
+                    0.2, 0.6, 0.15,
+                    0.3, 0.15, 0.5),
+                  nrow = 3, byrow = TRUE)
+
+
+# Step 2: Construct the Full Covariance Matrix
+Sigma_total <- as.matrix(kronecker(GRMa, Sigma_A) +
+                         kronecker(GRMd, Sigma_D) +
+                         kronecker(GRMaa, Sigma_AA) +
+                         kronecker(diag(n), Sigma_E))
+
+
+
+#Simulate Gaussian data
+
+# mvrnorm() from MASS package might be considerably slower
+#pheno = mvrnorm(n = 1, mu = rep(0, nrow(Sigma_total)), Sigma = Sigma_total)
+
+# you may need to adjust number of cores
+pheno = rmvn(n = 1, mu = rep(0, nrow(Sigma_total)), sigma = Sigma_total, ncores = 9)
+
+# Reshape the vector into a matrix with n columns
+pheno_col <- matrix(pheno, ncol = 3, byrow = TRUE)
+
+# Create data frame
+data = as.data.frame(pheno_col)
+
+
+
+mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, formula = NULL, data = NULL){
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+
+  # Constructing the tensor with additive, dominance, and interaction components
+  GRMtensor <- array(c(as.matrix(grms$A), as.matrix(grms$D), as.matrix(grms$AA)),
+                     dim = c(nrow(grms$A), ncol(grms$A), 3))
+
+  # Convert to tensor format
+  GRMtensor <- as.Tensor(GRMtensor)
+
+  # Eigen decomposition of the tensor
+  teigen <- tEIG(GRMtensor, "dst")
+
+  # Extract matrix D
+  A_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,1]
+  D_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,2]
+  AA_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,3]
+
+  # Store matrices
+  D_A_sparse <- Matrix(A_eigenvalue, sparse = T)
+  D_DD_sparse <- Matrix(D_eigenvalue, sparse = T)
+  D_AA_sparse <- Matrix(D_eigenvalue, sparse = T)
+
+
+  # Eigenvectors
+
+  Q <- teigen$P$data
+
+  # Reduced
+  P <- as.Tensor(Q[,1:n_pc,])
+
+  # Transform response variable matrix
+
+  trans.resp.m <- matrix(0, nrow = n_pc, ncol = ncol(resp.m))
+
+  # Perform the mode-3 product by iterating over the third dimension of P
+  for (i in 1:3) {
+    # Slice the i-th "layer" of the tensor P (dimension 926 x n_pc)
+    P_slice <- P$data[, , i]
+
+    # Perform matrix multiplication (P_slice %*% resp.m)
+    trans.resp.m <- trans.resp.m  + t(P_slice) %*% as.matrix(resp.m)
+  }
+
+
+  E <- diag(nrow(trans.resp.m))
+
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x,  D_A_sparse ))
+    ind_D <- lapply(Z_struc, function(x) kronecker(x, D_DD_sparse))
+    ind_AA <- lapply(Z_struc, function(x) kronecker(x, D_AA_sparse))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp > 1) {
+    if (model == "AE") {
+      output$matrices <- c(ind_A, ind_D, ind_AA, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  } else {
+    if (model == "E") {
+      output <- list(ind_E)
+    } else if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  }
+
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+
+  return(output)
+}
+
+
+mat <- mt_tensor_evd(grms = c(A = GRMa, D = GRMd, AA = GRMaa),
+                     n_resp = 3,
+                     resp.m = as.data.frame(pheno_col),
+                     n_pc = 926,
+                     model = "AE", data = data)
+
+
+# Prepare for mglm4twin
+
+# Fixed effects
+
+linear_pred_1 <- V1 ~ 1
+linear_pred_2 <- V2 ~ 1
+linear_pred_3 <- V3 ~ 1
+
+data <- as.data.frame(mat$phenotype)
+
+res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
+                 matrix_pred = c(mat$matrices),
+                 data = data)
+
+
+
+
+
