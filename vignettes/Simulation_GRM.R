@@ -493,7 +493,7 @@ Sigma_E <- matrix(c(0.5, 0.2, 0.3,
 # Step 2: Construct the Full Covariance Matrix
 Sigma_total <- as.matrix(kronecker(GRMa, Sigma_A) +
                          kronecker(GRMd, Sigma_D) +
-                         kronecker(GRMaa, Sigma_AA) +
+                        # kronecker(GRMaa, Sigma_AA) +
                          kronecker(diag(n), Sigma_E))
 
 
@@ -522,7 +522,7 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
 
 
   # Constructing the tensor with additive, dominance, and interaction components
-  GRMtensor <- array(c(as.matrix(grms$A), as.matrix(grms$D), as.matrix(grms$AA)),
+  GRMtensor <- array(c(as.matrix(grms$A), as.matrix(grms$D)), #as.matrix(grms$AA)),
                      dim = c(nrow(grms$A), ncol(grms$A), 3))
 
   # Convert to tensor format
@@ -534,12 +534,12 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
   # Extract matrix D
   A_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,1]
   D_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,2]
-  AA_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,3]
+  #AA_eigenvalue <- teigen$D$data[1:n_pc,1:n_pc,3]
 
   # Store matrices
   D_A_sparse <- Matrix(A_eigenvalue, sparse = T)
   D_DD_sparse <- Matrix(D_eigenvalue, sparse = T)
-  D_AA_sparse <- Matrix(D_eigenvalue, sparse = T)
+  #D_AA_sparse <- Matrix(AA_eigenvalue, sparse = T)
 
 
   # Eigenvectors
@@ -551,6 +551,22 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
 
   # Transform response variable matrix
 
+  #trans.resp.m <- as.matrix(resp.m)
+
+
+  # library(torch)
+  #
+  # # Convert P and resp.m to torch tensors
+  # P_tensor <- torch_tensor(P$data)
+  # resp_m_tensor <- torch_tensor(as.matrix(resp.m))
+  #
+  # # Perform the mode-3 product using Einstein summation
+  # trans_resp_m_tensor <- torch_einsum("ijn,im->jm", list(P_tensor, resp_m_tensor))
+  #
+  # # Convert back to R matrix if needed
+  # trans.resp.m <- as.matrix(trans_resp_m_tensor)
+
+  # Einstein Summation
   trans.resp.m <- matrix(0, nrow = n_pc, ncol = ncol(resp.m))
 
   # Perform the mode-3 product by iterating over the third dimension of P
@@ -575,7 +591,7 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
     Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
     ind_A <- lapply(Z_struc, function(x) kronecker(x,  D_A_sparse ))
     ind_D <- lapply(Z_struc, function(x) kronecker(x, D_DD_sparse))
-    ind_AA <- lapply(Z_struc, function(x) kronecker(x, D_AA_sparse))
+    #ind_AA <- lapply(Z_struc, function(x) kronecker(x, D_AA_sparse))
     ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
   }
 
@@ -584,7 +600,10 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
   ####################################################################
   if (n_resp > 1) {
     if (model == "AE") {
-      output$matrices <- c(ind_A, ind_D, ind_AA, ind_E)
+      output$matrices <- c(ind_A,
+                           ind_D,
+                           #ind_AA,
+                           ind_E)
       output$phenotype <- trans.resp.m
     }
   } else {
@@ -616,10 +635,10 @@ mt_tensor_evd <- function(n, grms, n_resp, resp.m = NULL, model, n_pc = 20, form
 }
 
 
-mat <- mt_tensor_evd(grms = c(A = GRMa, D = GRMd, AA = GRMaa),
+mat <- mt_tensor_evd(grms = c(A = GRMa, D = GRMd),
                      n_resp = 3,
                      resp.m = as.data.frame(pheno_col),
-                     n_pc = 926,
+                     n_pc = 920,
                      model = "AE", data = data)
 
 
@@ -636,7 +655,7 @@ data <- as.data.frame(mat$phenotype)
 res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
                  matrix_pred = c(mat$matrices),
                  data = data)
-
+res$Covariance
 
 
 
