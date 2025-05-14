@@ -9,6 +9,9 @@ require(MASS)
 require(mvnfast)
 require(multivarious)
 require(Rdimtools)
+require(mildsvm)
+require(rsvd)
+require(rpca)
 
 
 #### Use SNP data from AGHmatrix #####
@@ -706,19 +709,19 @@ mt_randproj <- function(n, marker_matrix, n_resp, row_dim, col_dim, resp.m = NUL
   # Center the imputed matrix
   Z <- sweep(marker_imputed, 2, 2 * p_vec, FUN = "-")
 
-  output.snp.col <- Rdimtools::do.rndproj(Z, ndim = col_dim, type = "gaussian")
+  #output.snp.col <- Rdimtools::do.rndproj(Z, ndim = col_dim, type = "gaussian")
   output.snp.row <- Rdimtools::do.rndproj(t(Z), ndim = row_dim, type = "gaussian")
 
   S1 = t(output.snp.row$projection)
-  S2 = output.snp.col$projection
+  #S2 = output.snp.col$projection
 
   dim(S1)
-  dim(S2)
+  #dim(S2)
   dim(Z)
 
   # sketch genotype matrix
 
-  Zs1s2 = S1 %*% Z %*% S2
+  Zs1s2 = S1 %*% Z #%*% S2
   dim(Zs1s2)
 
   Z1 = t(output.snp.row$projection) %*% marker_matrix
@@ -786,7 +789,7 @@ mt_randproj <- function(n, marker_matrix, n_resp, row_dim, col_dim, resp.m = NUL
 }
 
 
-mat <- mt_randproj(n = 926, marker_matrix = snp.pine, n_resp = 3, row_dim = 600, col_dim = ncol(snp.pine), resp.m = pheno_col, model = "AE", formula = NULL, data = NULL)
+mat <- mt_randproj(n = 926, marker_matrix = snp.pine, n_resp = 3, row_dim = 100, col_dim = ncol(snp.pine), resp.m = pheno_col, model = "AE", formula = NULL, data = NULL)
 
 
 # Prepare for mglm4twin
@@ -839,4 +842,476 @@ cov_matrix_E
 
 ### sparse svd
 ### Check sketching package srht
+
+
+mt_nyström <- function(n, marker_matrix, n_resp, row_dim, resp.m = NULL, model, formula = NULL, data = NULL){
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+  # marker_matrix = snp.pine
+  # col_dim = 4000
+  # row_dim = 300
+  # resp.m = pheno_col
+
+
+  # Compute allele frequencies
+  p_vec <- colMeans(marker_matrix, na.rm = TRUE) / 2
+
+  # Create copy of marker_matrix
+  marker_imputed <- marker_matrix
+
+  # Impute NAs with 2 * p_j (the expected value under Hardy-Weinberg)
+  for (j in seq_len(ncol(marker_imputed))) {
+    marker_imputed[is.na(marker_imputed[, j]), j] <- 2 * p_vec[j]
+  }
+
+  # Center the imputed matrix
+  Z <- sweep(marker_imputed, 2, 2 * p_vec, FUN = "-")
+
+  #output.snp.col <- kfm_nystrom(t(Z), m = nrow(t(Z)), r = 4000, kernel = "radial")
+  output.snp.row <- kfm_nystrom(Z, m = nrow(Z), r = row_dim, kernel = "radial")
+
+
+  S1 = t(output.snp.row$dv)
+  S2 = Z
+
+  dim(S1)
+  dim(S2)
+  dim(Z)
+
+  # sketch genotype matrix
+
+  Zs1s2 = t(S1) %*% Z #%*% t(Z)
+  dim(Zs1s2)
+
+  Z1 = t(S1) %*% marker_matrix
+  dim(Z1)
+
+  K = Zs1s2 %*% t(Zs1s2)
+  dim(K)
+
+  H = K/ncol(Z)
+
+  A <- as(H, "dsCMatrix")
+
+  # Transform response variable matrix
+  trans.resp.m <- t(S1) %*% as.matrix(pheno_col)
+
+  dim(trans.resp.m)
+
+  E <- diag(nrow(trans.resp.m))
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, A))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp > 1) {
+    if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  } else {
+    if (model == "E") {
+      output <- list(ind_E)
+    } else if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  }
+
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+
+  return(output)
+}
+
+
+
+mat <- mt_nyström(n = 926, marker_matrix = snp.pine, n_resp = 3, row_dim = 700, resp.m = pheno_col, model = "AE", formula = NULL, data = NULL)
+
+
+
+# Prepare for mglm4twin
+
+# Fixed effects
+
+linear_pred_1 <- V1 ~ 1
+linear_pred_2 <- V2 ~ 1
+linear_pred_3 <- V3 ~ 1
+
+data <- as.data.frame(mat$phenotype)
+
+res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
+                 matrix_pred = c(mat$matrices),
+                 data = data)
+
+A11 <- res$Covariance[1]
+A22 <- res$Covariance[2]
+A33 <- res$Covariance[3]
+A21 <- res$Covariance[4]
+A31 <- res$Covariance[5]
+A32 <- res$Covariance[6]
+
+E11 <- res$Covariance[7]
+E22 <- res$Covariance[8]
+E33 <- res$Covariance[9]
+E21 <- res$Covariance[10]
+E31 <- res$Covariance[11]
+E32 <- res$Covariance[12]
+
+
+
+# Construct covariance matrix
+cov_matrix_A <- matrix(c(
+  A11, A21, A31,
+  A21, A22, A32,
+  A31, A32, A33
+), nrow = 3, byrow = TRUE)
+
+cov_matrix_A
+
+# Construct covariance matrix
+cov_matrix_E <- matrix(c(
+  E11, E21, E31,
+  E21, E22, E32,
+  E31, E32, E33
+), nrow = 3, byrow = TRUE)
+
+cov_matrix_E
+
+
+
+mt_rsvd <- function(n, grm, n_resp, resp.m = NULL, model, formula = NULL, data = NULL){
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+
+
+  grm_sparse <- Matrix(grm, sparse = FALSE)
+  A <- as(grm_sparse, "dsCMatrix")
+
+
+  res <- rsvd(A)
+  d <- res$d
+  u <- res$u
+  v <- res$v
+
+
+
+  # # Eigen decomposition of GRM
+  # evd <- eigen(A, symmetric = TRUE)
+  # Q <- evd$eigvalsQ <- evd$vectors
+  # lambda <- evd$values
+  #
+  # # Reduce Q
+  # n <- length(lambda) - n_pc
+  # P <- Q[, 1:n_pc]
+  D <- diag(d)
+
+
+  P <- res$u
+
+
+
+  # Transform response variable matrix
+  trans.resp.m <- t(P) %*% as.matrix(resp.m)
+  E <- diag(nrow(trans.resp.m))
+
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, D))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp > 1) {
+    if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  } else {
+    if (model == "E") {
+      output <- list(ind_E)
+    } else if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  }
+
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+
+  return(output)
+}
+
+
+mat <- mt_rsvd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col),  model = "AE", data = data)
+
+
+# Prepare for mglm4twin
+
+# Fixed effects
+
+linear_pred_1 <- V1 ~ 1
+linear_pred_2 <- V2 ~ 1
+linear_pred_3 <- V3 ~ 1
+
+data <- as.data.frame(mat$phenotype)
+
+res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
+                 matrix_pred = c(mat$matrices),
+                 data = data)
+
+A11 <- res$Covariance[1]
+A22 <- res$Covariance[2]
+A33 <- res$Covariance[3]
+A21 <- res$Covariance[4]
+A31 <- res$Covariance[5]
+A32 <- res$Covariance[6]
+
+E11 <- res$Covariance[7]
+E22 <- res$Covariance[8]
+E33 <- res$Covariance[9]
+E21 <- res$Covariance[10]
+E31 <- res$Covariance[11]
+E32 <- res$Covariance[12]
+
+
+
+# Construct covariance matrix
+cov_matrix_A <- matrix(c(
+  A11, A21, A31,
+  A21, A22, A32,
+  A31, A32, A33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_A, 2)
+
+# Construct covariance matrix
+cov_matrix_E <- matrix(c(
+  E11, E21, E31,
+  E21, E22, E32,
+  E31, E32, E33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_E, 2)
+
+
+
+
+mt_rpca<- function(n, grm, n_resp, resp.m = NULL, model, formula = NULL, data = NULL){
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+
+
+  grm_sparse <- Matrix(grm, sparse = FALSE)
+  A <- as(grm_sparse, "dsCMatrix")
+
+  grm <- as.matrix(GRM@x)
+
+  res <- rpca::rpca(grm)
+  length(res$L.svd$d)
+  L <- res$L.svd$d
+  L <- res$L.svd$
+  S <- res$S
+
+
+  u <- res$L.svd$u
+  vt <- res$L.svd$vt
+  L <- res$L.svd$L
+
+  res$L.svd$d
+
+
+
+  # # Eigen decomposition of GRM
+  # evd <- eigen(A, symmetric = TRUE)
+  # Q <- evd$eigvalsQ <- evd$vectors
+  # lambda <- evd$values
+  #
+  # # Reduce Q
+  # n <- length(lambda) - n_pc
+  # P <- Q[, 1:n_pc]
+  D <- diag(d)
+
+
+  P <- res$u
+
+
+  # # EigenL# # Eigen decomposition of GRM
+  # evd <- eigen(A, symmetric = TRUE)
+  # Q <- evd$eigvalsQ <- evd$vectors
+  # lambda <- evd$values
+  #
+  # # Reduce Q
+  # n <- length(lambda) - n_pc
+  # P <- Q[, 1:n_pc]
+  D <- diag(d)
+
+
+  P <- res$u
+
+
+
+  # Transform response variable matrix
+  trans.resp.m <- t(P) %*% as.matrix(resp.m)
+  E <- diag(nrow(trans.resp.m))
+
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, D))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp > 1) {
+    if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  } else {
+    if (model == "E") {
+      output <- list(ind_E)
+    } else if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$phenotype <- trans.resp.m
+    }
+  }
+
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+
+  return(output)
+}
+
+
+mat <- mt_rsvd(grm = GRM, n_resp = 3, resp.m = as.data.frame(pheno_col),  model = "AE", data = data)
+
+
+# Prepare for mglm4twin
+
+# Fixed effects
+
+linear_pred_1 <- V1 ~ 1
+linear_pred_2 <- V2 ~ 1
+linear_pred_3 <- V3 ~ 1
+
+data <- as.data.frame(mat$phenotype)
+
+res <- mglm4twin(linear_pred = c(linear_pred_1, linear_pred_2, linear_pred_3),
+                 matrix_pred = c(mat$matrices),
+                 data = data)
+
+A11 <- res$Covariance[1]
+A22 <- res$Covariance[2]
+A33 <- res$Covariance[3]
+A21 <- res$Covariance[4]
+A31 <- res$Covariance[5]
+A32 <- res$Covariance[6]
+
+E11 <- res$Covariance[7]
+E22 <- res$Covariance[8]
+E33 <- res$Covariance[9]
+E21 <- res$Covariance[10]
+E31 <- res$Covariance[11]
+E32 <- res$Covariance[12]
+
+
+
+# Construct covariance matrix
+cov_matrix_A <- matrix(c(
+  A11, A21, A31,
+  A21, A22, A32,
+  A31, A32, A33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_A, 2)
+
+# Construct covariance matrix
+cov_matrix_E <- matrix(c(
+  E11, E21, E31,
+  E21, E22, E32,
+  E31, E32, E33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_E, 2)
+
+### Test CUR and Biclustering (Co-clustering)
+
+library(biclust)
+
+erg <- biclust(as.matrix(snp.pine), method=BCCC(), delta=1.5, alpha=1, number=10)
+erg
 
