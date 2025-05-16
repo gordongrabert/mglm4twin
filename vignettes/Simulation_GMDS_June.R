@@ -28,7 +28,7 @@ df <- t(data.frame(matrix(unlist(data$genotype), nrow=length(data$genotype), byr
 
 #### Phenotype simulation ####
 
-# Randomly select 1000 rows
+# Randomly select 300 rows
 set.seed(123)
 selected_rows <- sample(nrow(df), 1000)
 df_selected <- df[selected_rows, ]  # Rows selected here
@@ -95,11 +95,78 @@ tau = c(A, E)
 
 
 ## GRM structure
-mat <- mt_grm(n = n, grm = GRM, n_resp = 3, model = "AE", data = data)
+
+
+
+mt_grm_1 <- function(n, grm, n_resp, model, formula = NULL, data = NULL) {
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+  grm_sparse <- Matrix(grm, sparse = F)
+  A <- as(grm_sparse, "dsCMatrix")
+  E <- diag(n)
+  # n = n
+  # model = "AE"
+  # formula = list("formE1" = ~ 1, "formE2" = ~ 1, "formE12" = ~ 1,
+  #                "formA1" = ~ 1, "formA2" = ~ 1, "formA12" = ~ 1)
+  # data = pheno
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  if(n_resp > 1) {
+    Z_struc <-  mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x, A)
+      kronecker(x, A), A = A)
+    ind_E <- lapply(Z_struc, function(x, E)
+      kronecker(x, E), E = E)
+  }
+  ####################################################################
+  ## Selecting the diferent twin models ##############################
+  ####################################################################
+  if(n_resp > 1) {
+    if(model == "AE") {
+      output <- c(ind_A, ind_E) # TODO changed ordering of A and E matrix compared to mt_twin
+    }
+  }
+  if(n_resp == 1) {
+    if(model == "E") {
+      output <- list(ind_E)
+    }
+    if(model == "AE") {
+      output <- c(ind_A, ind_E)
+    }
+  }
+  if(!is.null(formula)) {
+    if(length(output) != length(formula)) {
+      print("Error: Number of formula does not match number of dispersion components")
+    }
+    if(length(output) == length(formula)) {
+      X_list <- lapply(formula, model.matrix, data = data)
+      new_output <- list()
+      list_final <- list()
+      for(i in 1:length(output)) {
+        list_temp <- list()
+        for(j in 1:ncol(X_list[[i]])) {
+          list_temp[[j]] <- X_list[[i]][,j]*output[[i]]
+        }
+        list_final[[i]] <- list_temp
+      }
+      output <- do.call(c,list_final)
+    }
+  }
+  return(output)
+}
+
+GRM <- cov2cor(GRM)
+
+mat <- mt_grm_1(n = 1000, grm = GRM, n_resp = 3, model = "AE", data = NULL)
 Omega <- as.matrix(mt_matrix_linear_predictor(tau = tau, Z = mat))
 
 # Create correlation matrix
-Omega.cor <- cov2cor(Omega)
+#Omega.cor <- cov2cor(Omega)
 
 set.seed(123)
 
@@ -132,6 +199,7 @@ set.seed(181185)
 
 qparameters <- vector("list", 3 * n)
 names_vec <- character(3 * n)
+phi <- 5
 
 # Fill qparameters and names
 for (i in 1:n) {
@@ -150,25 +218,162 @@ for (i in 1:n) {
   names(qparameters) <- names_vec
 }
 
-for (i in 1:n) {
-  Y <- rnorta(R = 1, cor.matrix = Omega.cor,
-                distr = invcdfnames, qparameters = qparameters)
-    Y1[[i]] <- Y[1]
-    Y2[[i]] <- Y[2]
-    Y3[[i]] <- Y[3]
+
+Y <- rnorta(R = 1, cor.matrix = Omega,
+            distr = invcdfnames, qparameters = qparameters)
+
+Y1 <- Y[1:1000]
+Y2 <- Y[1001:2000]
+Y3 <- Y[2001:3000]
+
+
+data <- data.frame("Y1" = Y1, "Y2" =  Y2 , "Y3" = Y3,
+                   "trt" = trt, "sex" = sex,
+                   "age_std" = age_std)
+
+hist(data$Y1)
+hist(data$Y2)
+hist(data$Y3)
+
+
+my_cols <- c("#00AFBB", "#E7B800" )
+pairs(data[,1:3], pch = 19,  cex = 0.5,
+      lower.panel=NULL, col = my_cols[as.factor(data$trt)])
+
+
+### fitting model
+
+
+data_select <- data %>% select(Y1, Y2, Y3, sex , age_std)
+
+
+
+mt_rsvd <- function(n, grm, n_resp, model, formula = NULL, data = NULL){
+
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+
+
+  grm_sparse <- Matrix(grm, sparse = FALSE)
+  A <- as(grm_sparse, "dsCMatrix")
+
+
+  res <- rsvd(A)
+  d <- res$d
+  u <- res$u
+  v <- res$v
+
+
+
+  D <- diag(d)
+  P <- res$u
+
+  # Transform response variable matrix
+  projected.data <- data
+  E <- diag(nrow(projected.data))
+
+
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, D))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp > 1) {
+    if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$data <- projected.data
+    }
+  } else {
+    if (model == "E") {
+      output <- list(ind_E)
+    } else if (model == "AE") {
+      output$matrices <- c(ind_A, ind_E)
+      output$data <- projected.data
+    }
+  }
+
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+
+  return(output)
 }
 
 
+mat <- mt_grm_1(n=1000, grm = GRM, n_resp = 3, model = "AE", data = NULL)
+
+mat <- mt_rsvd(n=1000, grm = GRM, n_resp = 3, model = "AE", data = data_select)
+
+data.model <- as.data.frame(mat$data)
 
 
-Y1 <- c(do.call(c, Y1_DZ), do.call(c, Y1_MZ))
-Y2 <- c(do.call(c, Y2_DZ), do.call(c, Y2_MZ))
-Y3 <- c(do.call(c, Y3_DZ), do.call(c, Y3_MZ))
+form_Y1 <- c(Y1 ~ sex + age_std)
+form_Y2 <- c(Y2 ~ sex + age_std)
+form_Y3 <- c(Y3 ~ sex + age_std)
 
-data <- data.frame("Y1" = Y1, "Y2" = Y2, "Y3" = Y3, "twin_id" = rep(1:2, 414),
-                   "zyg" = rep(zyg, each = 2), "sex" = rep(sex, each = 2),
-                   "age_std" = rep(age_std, each = 2))
-
+link = rep("logit", 3)
+variance = rep("binomialP", 3)
 
 
+res <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3),
+                 matrix_pred = c(mat),
+                 link = link,
+                 variance = variance,
+                 data = data.model)
+
+A11 <- res$Covariance[1]
+A22 <- res$Covariance[2]
+A33 <- res$Covariance[3]
+A21 <- res$Covariance[4]
+A31 <- res$Covariance[5]
+A32 <- res$Covariance[6]
+
+E11 <- res$Covariance[7]
+E22 <- res$Covariance[8]
+E33 <- res$Covariance[9]
+E21 <- res$Covariance[10]
+E31 <- res$Covariance[11]
+E32 <- res$Covariance[12]
+
+
+
+# Construct covariance matrix
+cov_matrix_A <- matrix(c(
+  A11, A21, A31,
+  A21, A22, A32,
+  A31, A32, A33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_A, 2)
+
+# Construct covariance matrix
+cov_matrix_E <- matrix(c(
+  E11, E21, E31,
+  E21, E22, E32,
+  E31, E32, E33
+), nrow = 3, byrow = TRUE)
+
+round(cov_matrix_E, 2)
 
