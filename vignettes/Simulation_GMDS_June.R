@@ -58,6 +58,8 @@ title(main = "Eigenvalues GRM")
 ## Setting model parameters
 E <- c(0.75, 0.7, 0.65, -0.3, 0.25, -0.4)
 A <- c(0.25,0.3, 0.35, -0.15, 0.20, -0.2)
+
+### For check 0.3 + 0.15 = 0.45 = 100% 
 tau = c(E, A)
 
 
