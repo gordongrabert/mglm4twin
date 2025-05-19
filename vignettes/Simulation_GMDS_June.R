@@ -346,7 +346,7 @@ round(h2_estimate, 3)
 # Frobenius norm of the difference
 norm(h2_matrix - h2_estimate, type = "F")
 
-
+### Simulation Pipeline ###
 library(microbenchmark)
 library(Matrix)
 
@@ -361,7 +361,7 @@ results <- data.frame(
 set.seed(123)
 
 # Sample sizes to loop through
-n_vals <- seq(200, 300, by = 100)
+n_vals <- seq(500, 2000, by = 500)
 
 for (n in n_vals) {
   cat("Running for n =", n, "\n")
