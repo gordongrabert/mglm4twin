@@ -346,7 +346,7 @@ round(h2_estimate, 3)
 # Frobenius norm of the difference
 norm(h2_matrix - h2_estimate, type = "F")
 
-### Simulation Pipeline ###
+### Simulation Pipeline
 library(microbenchmark)
 library(Matrix)
 
@@ -361,11 +361,16 @@ results <- data.frame(
 set.seed(123)
 
 # Sample sizes to loop through
-n_vals <- seq(500, 2000, by = 500)
+n_vals <- seq(500, 3000, by = 500)
+n_vals_new <- seq(550, 800, by = 50)
 
-for (n in n_vals) {
+summaries_list <- list()
+
+load("vignettes/simulation_results.Rdata")  # or "results_df.Rdata" and "summaries_list.Rdata"
+
+for (n in n_vals_new) {
   cat("Running for n =", n, "\n")
-  
+
   ## 1. Subset data
   selected_rows <- sample(nrow(df), n)
   df_selected <- df[selected_rows, ]
@@ -380,7 +385,6 @@ for (n in n_vals) {
   E <- c(0.75, 0.7, 0.65, -0.3, 0.25, -0.4)
   A <- c(0.25, 0.3, 0.35, -0.15, 0.20, -0.2)
   tau <- c(E, A)
-  
   mat <- mt_grm_1(n = n, grm = GRM_cor, n_resp = 3, model = "AE", data = NULL)
   Omega <- as.matrix(mt_matrix_linear_predictor(tau = tau, Z = mat))
   
@@ -399,7 +403,6 @@ for (n in n_vals) {
   mu2 <- exp(X %*% beta2) / (1 + exp(X %*% beta2))
   mu3 <- exp(X %*% beta3) / (1 + exp(X %*% beta3))
   
-  # Generate qparameters
   phi <- 5
   qparameters <- vector("list", 3 * n)
   invcdfnames <- rep("qbeta", 3 * n)
@@ -409,7 +412,6 @@ for (n in n_vals) {
     qparameters[[2 * n + i]] <- list(shape1 = mu3[i]*phi, shape2 = (1 - mu3[i])*phi)
   }
   
-  # Simulate multivariate response
   Y <- rnorta(R = 1, cor.matrix = Omega, distr = invcdfnames, qparameters = qparameters)
   Y1 <- Y[1:n]
   Y2 <- Y[(n+1):(2*n)]
@@ -448,26 +450,50 @@ for (n in n_vals) {
   
   ## 9. Store results
   results <- rbind(results, data.frame(n = n, runtime_sec = runtime, frob_norm = frob))
+  summaries_list[[paste0("n_", n)]] <- sum
 }
-
 # View results
 print(results)
 
+# Save results to .Rdata
+#save(results, summaries_list, file = "vignettes/simulation_results.Rdata")
 
-# Optional: Plot computation time vs n
-library(ggplot2)
+# Define a consistent, publication-ready theme
+theme_pub <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    panel.grid.minor = element_blank()
+  )
+
+# Plot 1: Computation time
 ggplot(results, aes(x = n, y = runtime_sec)) +
-  geom_line() + geom_point() +
-  labs(title = "Computation Time vs n, Phenotypes = 3, Type = Multibound",
-       x = "Sample Size (n)",
-       y = "Time (seconds)") +
-  theme_minimal()
+  geom_line(color = "#1f77b4", linewidth = 1) +
+  geom_point(shape = 21, fill = "#1f77b4", size = 2) +
+  labs(
+    title = "Computation Time vs Sample Size (n)",
+    subtitle = "Phenotypes = 3, Type = Multibound",
+    x = "Sample Size (n)",
+    y = "Computation Time (seconds)"
+  ) +
+  theme_pub
 
+# Plot 2: Frobenius norm
 ggplot(results, aes(x = n, y = frob_norm)) +
-  geom_line() + geom_point() +
-  labs(title = "Frobenius Norm (True h2 - Estimated h2) vs n, Phenotypes = 3, Type = Multibound",
-       x = "Sample Size (n)",
-       y = "Frobenius Norm") +
-  theme_minimal()
+  geom_line(color = "#d62728", linewidth = 1) +
+  geom_point(shape = 21, fill = "#d62728", size = 2) +
+  labs(
+    title = "Estimation Error vs Sample Size (n)",
+    subtitle = expression("Frobenius Norm of (" * hat(H)^2 * " - True " * H^2 * "), Phenotypes = 3, Type = Multibound"),
+    x = "Sample Size (n)",
+    y = "Frobenius Norm"
+  ) +
+  theme_pub
+
+
+
+
+
 
 
