@@ -495,5 +495,3 @@ ggplot(results, aes(x = n, y = frob_norm)) +
 
 
 
-
-
