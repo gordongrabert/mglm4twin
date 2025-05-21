@@ -16,6 +16,7 @@ library(dplyr)
 library(jsonlite)
 library(RSpectra)
 require(GGally)
+library(copula)
 
 #### Load Simulated Data ####
 
@@ -29,7 +30,7 @@ df <- t(data.frame(matrix(unlist(data$genotype), nrow=length(data$genotype), byr
 
 # Randomly select n rows
 set.seed(123)
-n = 5000
+n = 1000
 selected_rows <- sample(nrow(df), n)
 df_selected <- df[selected_rows, ]  # Rows selected here
 
@@ -326,34 +327,202 @@ mt_evd <- function(n, grm, n_resp, model, formula = NULL, data = NULL){
   ####################################################################
   ## Prepare matrices ################################################
   ####################################################################
+  
+  
+  
+  # Inverse logit
+  inv_logit <- function(x) 1 / (1 + exp(-x))
+  
+  # Safe logit
+  safe_logit <- function(p) {
+    eps <- 1e-6
+    log(pmin(pmax(p, eps), 1 - eps) / (1 - pmin(pmax(p, eps), 1 - eps)))
+  }
+  
+  # Detect numeric & probabilistic columns
   data_numeric <- data[, sapply(data, is.numeric)]
-
-  grm_sparse <- Matrix(grm, sparse = FALSE)
-  A <- as(grm_sparse, "dsCMatrix")
-  
-  res <- eigen(A)
-  
-  A <- diag(res$values)
-  
-  Q <- as.matrix(res$vectors)
-  
   is_prob_column <- function(x) all(x > 0 & x < 1)
   
-  data_prob   <- data_numeric[, sapply(data_numeric, is_prob_column)]
+  data_prob    <- data_numeric[, sapply(data_numeric, is_prob_column)]
   data_nonprob <- data_numeric[, !sapply(data_numeric, is_prob_column)]
-
-  # Apply logit only where valid
-  data_logit <- log(data_prob / (1 - data_prob))
-  # Combine again
-  data_transformed <- cbind(data_logit, data_nonprob)
-
   
-  # Project
-  P <- Q %*% as.matrix(data_transformed)
+  # Transform
+  data_logit <- as.data.frame(lapply(data_prob, safe_logit))
+  data_nonprob_scaled <- scale(data_nonprob)
+  data_transformed <- cbind(data_logit, data_nonprob_scaled)
+  
+  # GRM decomposition
+  grm_sparse <- Matrix(grm, sparse = FALSE)
+  res <- eigen(grm_sparse)
+  A <- diag(res$values)
+  Q <- as.matrix(res$vectors)
+  
+  # Projection
+  P <- t(Q) %*% as.matrix(data_transformed)
   P <- as.data.frame(P)
+  
+  # Inverse-transform probabilistic variables
+  P[ colnames(data_logit) ] <- lapply(P[ colnames(data_logit) ], inv_logit)
   colnames(P) <- colnames(data_numeric)
   P$sex <- data$sex
 
+  # 
+  # inv_logit <- function(x) 1 / (1 + exp(-x))
+  # data_numeric <- data[, sapply(data, is.numeric)]
+  # 
+  # grm_sparse <- Matrix(grm, sparse = FALSE)
+  # A <- as(grm_sparse, "dsCMatrix")
+  # 
+  # res <- eigen(A)
+  # 
+  # A <- diag(res$values)
+  # 
+  # Q <- as.matrix(res$vectors)
+  # 
+  # is_prob_column <- function(x) all(x > 0 & x < 1)
+  # 
+  # data_prob   <- data_numeric[, sapply(data_numeric, is_prob_column)]
+  # data_nonprob <- data_numeric[, !sapply(data_numeric, is_prob_column)]
+  # 
+  # # Apply logit only where valid
+  # data_logit <- log(data_prob / (1 - data_prob))
+  # # Combine again
+  # data_transformed <- cbind(data_logit, data_nonprob)
+  # 
+  # 
+  # # Project
+  # P <- t(Q) %*% as.matrix(data_transformed)
+  # P <- as.data.frame(P)
+  # P[1:3] <- inv_logit(P[1:3])
+  # colnames(P) <- colnames(data_numeric)
+  # P$sex <- data$sex
+
+  # Transform response variable matrix
+  
+  E <- diag(nrow(A))
+  
+  
+  ####################################################################
+  ## Extending to multivariate responses #############################
+  ####################################################################
+  output <- list()
+  
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, A))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+  
+  ####################################################################
+  ## Selecting the different twin models #############################
+  ####################################################################
+  if (n_resp == 1) {
+    if (model == "E") {
+      output$matrices <- c(ind_E)
+      output$data <- P
+      
+    } else if (model == "AE") {
+      output$matrices <- c(ind_E, ind_A)
+      output$data <- P
+      
+    }
+  } else if (n_resp > 1 && model == "AE") {
+    output$matrices <-  c(ind_E, ind_A)
+    output$data <- P
+    
+  }
+  
+  ####################################################################
+  ## Applying formula-based transformations ##########################
+  ####################################################################
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) {
+      stop("Error: Number of formulas does not match number of dispersion components")
+    }
+    X_list <- lapply(formula, model.matrix, data = data)
+    list_final <- lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    })
+    output <- do.call(c, list_final)
+  }
+  
+  return(output)
+}
+mt_copula <- function(n, grm, n_resp, model, formula = NULL, data = NULL){
+  
+  ####################################################################
+  ## Prepare matrices ################################################
+  ####################################################################
+  
+  data = data_select
+  grm = GRM
+  
+  # Detect numeric & probabilistic columns
+  data_numeric <- data[, sapply(data, is.numeric)]
+  is_prob_column <- function(x) all(x > 0 & x < 1)
+  
+  data_prob    <- data_numeric[, sapply(data_numeric, is_prob_column)]
+  data_nonprob <- data_numeric[, !sapply(data_numeric, is_prob_column)]
+  
+  # Step 2: Gaussian Copula transform function
+  gaussian_copula_transform <- function(x) {
+    u <- rank(x, ties.method = "average") / (length(x) + 1)
+    qnorm(u)
+  }
+  
+  
+  # Transform
+  # data_copula<- as.data.frame(lapply(data_prob, gaussian_copula_transform))
+  # data_nonprob_scaled <- scale(data_nonprob)
+  # data_transformed <- cbind(data_copula, data_nonprob_scaled)
+  
+  data_copula <- as.data.frame(lapply(data_numeric, gaussian_copula_transform))
+  
+  # GRM decomposition
+  grm_sparse <- Matrix(grm, sparse = FALSE)
+  res <- eigen(grm_sparse)
+  A <- diag(res$values)
+  Q <- as.matrix(res$vectors)
+  
+  # Projection
+  P <- t(Q) %*% as.matrix(data_copula)
+  P <- as.data.frame(P)
+  colnames(P) <- colnames(data_numeric)
+  P$sex <- data$sex
+  
+  # 
+  # inv_logit <- function(x) 1 / (1 + exp(-x))
+  # data_numeric <- data[, sapply(data, is.numeric)]
+  # 
+  # grm_sparse <- Matrix(grm, sparse = FALSE)
+  # A <- as(grm_sparse, "dsCMatrix")
+  # 
+  # res <- eigen(A)
+  # 
+  # A <- diag(res$values)
+  # 
+  # Q <- as.matrix(res$vectors)
+  # 
+  # is_prob_column <- function(x) all(x > 0 & x < 1)
+  # 
+  # data_prob   <- data_numeric[, sapply(data_numeric, is_prob_column)]
+  # data_nonprob <- data_numeric[, !sapply(data_numeric, is_prob_column)]
+  # 
+  # # Apply logit only where valid
+  # data_logit <- log(data_prob / (1 - data_prob))
+  # # Combine again
+  # data_transformed <- cbind(data_logit, data_nonprob)
+  # 
+  # 
+  # # Project
+  # P <- t(Q) %*% as.matrix(data_transformed)
+  # P <- as.data.frame(P)
+  # P[1:3] <- inv_logit(P[1:3])
+  # colnames(P) <- colnames(data_numeric)
+  # P$sex <- data$sex
+  
   # Transform response variable matrix
   
   E <- diag(nrow(A))
@@ -413,6 +582,7 @@ mat <- mt_grm_1(n=n, grm = GRM, n_resp = 3, model = "AE", data = NULL)
 
 mat <- mt_rsvd(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
 mat <- mt_evd(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
+mat <- mt_copula(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
 
 
 
@@ -450,6 +620,23 @@ res <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3),
 
 sum <-summary(res, model = "AE", biometric = T)
 sum
+
+initals <- sum$Dispersion$Estimates
+
+control_initial <- mt_initial_values(linear_pred = c(form_Y1, form_Y2, form_Y3), matrix_pred = c(mat), link = link, variance = variance,data = data_select, Ntrial = NULL)
+control_initial$tau <- c(initals)
+
+res2 <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3),
+                 matrix_pred = c(mat),
+                 link = link, 
+                 variance = variance, 
+                 control_initial = control_initial,
+                 data = data_select)
+
+sum2 <-summary(res2, model = "AE", biometric = T)
+sum2
+
+
 
 # Create an empty 3×3 matrix
 h2_estimate <- matrix(0, 3, 3)
