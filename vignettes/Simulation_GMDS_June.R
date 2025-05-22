@@ -30,7 +30,7 @@ df <- t(data.frame(matrix(unlist(data$genotype), nrow=length(data$genotype), byr
 
 # Randomly select n rows
 set.seed(123)
-n = 1000
+n = 5000
 selected_rows <- sample(nrow(df), n)
 df_selected <- df[selected_rows, ]  # Rows selected here
 
@@ -154,7 +154,10 @@ set.seed(123)
 sex <- sample(rep(c("Male", "Female"), each = n / 2))
 trt <- sample(rep(c("Control", "Treatment"), each = n / 2))
 
-Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70
+#Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70 ## from Wagner
+Age <- rnorm(n, mean = 70, sd = 10)
+# Optional: truncate values to keep them within a reasonable range (e.g., 50 to 90)
+Age <- pmin(pmax(Age, 50), 90)
 age_std <- (Age - mean(Age))/var(Age)
 X <- model.matrix(~ sex + age_std)
 beta1 <- c(1.6956, 0.0584, -0.2576)
@@ -213,6 +216,7 @@ data <- data.frame("Y1" = Y1, "Y2" =  Y2 , "Y3" = Y3,
 hist(data$Y1)
 hist(data$Y2)
 hist(data$Y3)
+hist(data$age_std)
 
 
 ggpairs(data, columns = 1:3, aes(color = sex, alpha = 0.5),
@@ -456,8 +460,6 @@ mt_copula <- function(n, grm, n_resp, model, formula = NULL, data = NULL){
   ## Prepare matrices ################################################
   ####################################################################
   
-  data = data_select
-  grm = GRM
   
   # Detect numeric & probabilistic columns
   data_numeric <- data[, sapply(data, is.numeric)]
@@ -576,15 +578,265 @@ mt_copula <- function(n, grm, n_resp, model, formula = NULL, data = NULL){
   
   return(output)
 }
+mt_copula_2 <- function(n, grm, n_resp, model, formula = NULL, data = NULL, marginals = NULL, backtransform = FALSE) {
+  library(fitdistrplus)
+  library(copula)
+  library(Matrix)
+  library(sn)  # for skew-normal
+  
+  
+
+# 
+#   marginals <- list(
+#     Y1 = "beta",
+#     Y2 = "beta",
+#     Y3 = "beta",
+#     age_std = "sn"  # skew-normal
+#   )
+# 
+# 
+# 
+#     n = nrow(data_select)
+#     grm = GRM
+#     n_resp = 3
+#     model = "AE"  # or "E", depending on what you want
+#     formula = NULL
+#     data = data_select
+#     marginals = marginals
+#     backtransform = TRUE  # or FALSE if you want to stay in the copula-transformed space
+
+  
+    
+      
+      # Detect numeric columns and separate sex
+      data_numeric <- data[, sapply(data, is.numeric)]
+      sex <- data$sex
+      
+      # Fit marginals if not provided
+      if (is.null(marginals)) {
+        marginals <- lapply(data_numeric, function(x) {
+          if (all(x > 0 & x < 1)) {
+            "beta"
+          } else if (all(x >= 0 & floor(x) == x)) {
+            "pois"
+          } else if (abs(skewness(x)) > 1) {
+            "sn"
+          } else {
+            "norm"
+          }
+        })
+      }
+      
+      # Gaussian copula transformation
+      gaussian_copula_transform <- function(x, dist_name) {
+        fit <- switch(dist_name,
+                      beta = fitdist(x, "beta", start = list(shape1 = 1, shape2 = 1)),
+                      sn   = selm(x ~ 1, family = "SN"),
+                      norm = fitdist(x, "norm"),
+                      stop("Unsupported distribution: ", dist_name))
+        
+        u <- switch(dist_name,
+                    beta = pbeta(x, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+                    sn   = psn(x, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3]),
+                    norm = pnorm(x, mean = fit$estimate["mean"], sd = fit$estimate["sd"]))
+        
+        qnorm(pmin(pmax(u, 1e-10), 1 - 1e-10))
+      }
+      
+      data_numeric <- data[, names(marginals)]
+      data_copula <- as.data.frame(mapply(function(x, dist) gaussian_copula_transform(x, dist),
+                                          data_numeric, marginals, SIMPLIFY = FALSE))
+      
+      # GRM decomposition
+      grm_sparse <- Matrix(grm, sparse = FALSE)
+      res <- eigen(grm_sparse)
+      A <- diag(res$values)
+      Q <- as.matrix(res$vectors)
+      
+      # Projection
+      P <- t(Q) %*% as.matrix(data_copula)
+      P <- as.data.frame(P)
+      colnames(P) <- colnames(data_numeric)
+      P$sex <- sex
+      
+      # Optional back-transformation
+      if (backtransform) {
+        inverse_transform <- function(z, dist_name, fit) {
+          u <- pnorm(z)
+          switch(dist_name,
+                 norm = qnorm(u, mean = fit$estimate["mean"], sd = fit$estimate["sd"]),
+                 beta = qbeta(u, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+                 sn   = qsn(u, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3], solver = "RFB"),
+                 stop("Unsupported distribution for inverse transformation")
+          )
+        }
+        
+        P[names(data_numeric)] <- as.data.frame(
+          Map(function(z, dist_name, varname) {
+            fit <- switch(dist_name,
+                          beta = fitdist(data_numeric[[varname]], "beta", start = list(shape1 = 1, shape2 = 1)),
+                          sn   = selm(data_numeric[[varname]] ~ 1, family = "SN"),
+                          norm = fitdist(data_numeric[[varname]], "norm"),
+                          stop("Unsupported distribution")
+            )
+            inverse_transform(z, dist_name, fit)
+          }, P[names(data_numeric)], marginals, names(data_numeric))
+        )
+      }
+
+      # Identity matrix for E
+      E <- diag(nrow(A))
+      
+      # Multivariate twin structure
+      output <- list()
+      if (n_resp > 1) {
+        Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+        ind_A <- lapply(Z_struc, function(x) kronecker(x, A))
+        ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+      }
+      
+      # Model selection
+      if (n_resp == 1) {
+        output$matrices <- if (model == "AE") list(ind_E, ind_A) else list(ind_E)
+        output$data <- P
+      } else if (n_resp > 1 && model == "AE") {
+        output$matrices <- c(ind_E, ind_A)
+        output$data <- P
+      }
+      
+      # Formula-based transformation
+      if (!is.null(formula)) {
+        if (length(output) != length(formula)) {
+          stop("Error: Number of formulas does not match number of dispersion components")
+        }
+        X_list <- lapply(formula, model.matrix, data = data)
+        list_final <- lapply(seq_along(output), function(i) {
+          lapply(seq_len(ncol(X_list[[i]])), function(j) {
+            X_list[[i]][, j] * output[[i]]
+          })
+        })
+        output <- do.call(c, list_final)
+      }
+      
+      return(output)
+    }
+mt_copula_3 <- function(n, grm, n_resp, model, formula = NULL, data = NULL, marginals = NULL, backtransform = FALSE) {
+  library(fitdistrplus)
+  library(copula)
+  library(Matrix)
+  library(sn)
+  
+  # Extract numeric data and sex variable
+  data_numeric <- data[, sapply(data, is.numeric)]
+  sex <- data$sex
+  
+  # Fit marginal distributions if not provided
+  if (is.null(marginals)) {
+    marginals <- lapply(data_numeric, function(x) {
+      if (all(x > 0 & x < 1)) "beta"
+      else if (all(x >= 0 & floor(x) == x)) "pois"
+      else if (abs(skewness(x)) > 1) "sn"
+      else "norm"
+    })
+  }
+  
+  # Fit marginal model once
+  fit_marginal <- function(x, dist) {
+    switch(dist,
+           beta = fitdist(x, "beta", start = list(shape1 = 1, shape2 = 1)),
+           sn   = selm(x ~ 1, family = "SN"),
+           norm = fitdist(x, "norm"),
+           stop("Unsupported distribution: ", dist))
+  }
+  
+  cdf_marginal <- function(x, fit, dist) {
+    switch(dist,
+           beta = pbeta(x, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+           sn   = psn(x, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3]),
+           norm = pnorm(x, mean = fit$estimate["mean"], sd = fit$estimate["sd"]),
+           stop("Unsupported distribution: ", dist))
+  }
+  
+  data_numeric <- data[, names(marginals)]
+  fits <- Map(fit_marginal, data_numeric, marginals)
+  data_copula <- as.data.frame(Map(function(x, fit, dist) {
+    qnorm(pmin(pmax(cdf_marginal(x, fit, dist), 1e-10), 1 - 1e-10))
+  }, data_numeric, fits, marginals))
+  
+  # GRM decomposition and projection
+  grm_eig <- eigen(as.matrix(grm), symmetric = TRUE)
+  Q <- grm_eig$vectors
+  P <- as.data.frame(t(Q) %*% as.matrix(data_copula))
+  colnames(P) <- colnames(data_numeric)
+  P$sex <- sex
+  
+  # Optional back-transformation
+  if (backtransform) {
+    inverse_transform <- function(z, fit, dist) {
+      u <- pnorm(z)
+      switch(dist,
+             beta = qbeta(u, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+             sn   = qsn(u, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3]),
+             norm = qnorm(u, mean = fit$estimate["mean"], sd = fit$estimate["sd"]),
+             stop("Unsupported distribution: ", dist))
+    }
+    
+    P[names(data_numeric)] <- as.data.frame(Map(function(z, fit, dist) {
+      inverse_transform(z, fit, dist)
+    }, P[names(data_numeric)], fits, marginals))
+  }
+  
+  # Matrix structure
+  E <- diag(nrow(grm))
+  output <- list()
+  
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, diag(grm_eig$values)))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+  
+  # Select matrices
+  if (n_resp == 1) {
+    output$matrices <- if (model == "AE") list(ind_E, ind_A) else list(ind_E)
+    output$data <- P
+  } else {
+    output$matrices <- if (model == "AE") c(ind_E, ind_A) else ind_E
+    output$data <- P
+  }
+  
+  # Formula-based transformation (optional)
+  if (!is.null(formula)) {
+    if (length(output) != length(formula)) stop("Formulas don't match matrix components")
+    X_list <- lapply(formula, model.matrix, data = data)
+    output <- do.call(c, lapply(seq_along(output), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output[[i]]
+      })
+    }))
+  }
+  
+  return(output)
+}
+
+marginals <- list(
+  Y1 = "beta",
+  Y2 = "beta",
+  Y3 = "beta",
+  age_std = "norm"  # skew-normal
+)
 
 
-mat <- mt_grm_1(n=n, grm = GRM, n_resp = 3, model = "AE", data = NULL)
-
-mat <- mt_rsvd(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
-mat <- mt_evd(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
-mat <- mt_copula(n=n, grm = GRM, n_resp = 3, model = "AE", data = data_select)
-
-
+mat <- mt_copula_3(
+  n = nrow(data_select),
+  grm = GRM,
+  n_resp = 3,
+  model = "AE",  # or "E", depending on what you want
+  formula = NULL,
+  data = data_select,
+  marginals = marginals,
+  backtransform = T  # or FALSE if you want to stay in the copula-transformed space
+)
 
 
 # Generate ggpairs plot
@@ -605,10 +857,15 @@ p <- ggpairs(
 
 p
 
+hist(mat$data$age_std)
 
 form_Y1 <- c(Y1 ~ sex + age_std)
 form_Y2 <- c(Y2 ~ sex + age_std)
 form_Y3 <- c(Y3 ~ sex + age_std)
+
+form_Y1 <- c(Y1 ~ sex )
+form_Y2 <- c(Y2 ~ sex )
+form_Y3 <- c(Y3 ~ sex )
 
 link = rep("logit", 3)
 variance = rep("binomialP", 3)
@@ -616,6 +873,8 @@ variance = rep("binomialP", 3)
 
 res <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3),
                  matrix_pred = c(mat$matrices),
+                 link = link,
+                 variance = variance, 
                  data = mat$data)
 
 sum <-summary(res, model = "AE", biometric = T)
@@ -623,11 +882,15 @@ sum
 
 initals <- sum$Dispersion$Estimates
 
-control_initial <- mt_initial_values(linear_pred = c(form_Y1, form_Y2, form_Y3), matrix_pred = c(mat), link = link, variance = variance,data = data_select, Ntrial = NULL)
+control_initial <- mt_initial_values(linear_pred = c(form_Y1, form_Y2, form_Y3), matrix_pred = c(mat$matrices), link = link, variance = variance,data = data_select, Ntrial = NULL)
 control_initial$tau <- c(initals)
 
+
+mat.dense <- mt_grm_1(n=n, grm = GRM, n_resp = 3, model = "AE", data = NULL)
+
+
 res2 <- mglm4twin(linear_pred = c(form_Y1, form_Y2, form_Y3),
-                 matrix_pred = c(mat),
+                 matrix_pred = c(mat.dense),
                  link = link, 
                  variance = variance, 
                  control_initial = control_initial,
@@ -658,7 +921,7 @@ round(h2_estimate, 3)
 # Frobenius norm of the difference
 norm(h2_matrix - h2_estimate, type = "F")
 
-### Simulation Pipeline
+### Simulation Pipeline ##
 library(microbenchmark)
 library(Matrix)
 
