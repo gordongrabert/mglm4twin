@@ -57,19 +57,23 @@ A <- c(0.25,0.3, 0.35, -0.15, 0.20, -0.2)
 tau = c(E, A)
 
 ## Groundtruth 
+## Groundtruth
+
+# Reorder E and A for lower triangle filling:
+# Order needed: E1, E12, E2, E13, E23, E3
+E_lt <- c(E[1], E[4], E[5], E[2], E[6], E[3])
+A_lt <- c(A[1], A[4], A[5], A[2], A[6], A[3])
 
 # Heritability 
-# h² values for lower triangle (row-wise order)
-h2_vals <- A / (A + E)
+h2_vals <- A_lt / (A_lt + E_lt)
 
-# Fill into 3×3 matrix
 h2_matrix <- matrix(0, 3, 3)
 h2_matrix[lower.tri(h2_matrix, diag = TRUE)] <- h2_vals
 h2_matrix <- h2_matrix + t(h2_matrix) - diag(diag(h2_matrix))
 
-# Environmentatility  
+# Environmentality
+e2_vals <- E_lt / (A_lt + E_lt)
 
-e2_vals <- E / (A + E)
 e2_matrix <- matrix(0, 3, 3)
 e2_matrix[lower.tri(e2_matrix, diag = TRUE)] <- e2_vals
 e2_matrix <- e2_matrix + t(e2_matrix) - diag(diag(e2_matrix))
@@ -740,10 +744,35 @@ mt_copula_3 <- function(n, grm, n_resp, model, formula = NULL, data = NULL, marg
     })
   }
   
+  
+  adjust_for_beta <- function(x) {
+    x[x <= 0] <- 1e-6
+    x[x >= 1] <- 1 - 1e-6
+    return(x)
+  }
+  
+  mom_beta_start <- function(x) {
+    m <- mean(x)
+    v <- var(x)
+    tmp <- m * (1 - m) / v - 1
+    list(shape1 = m * tmp, shape2 = (1 - m) * tmp)
+  }
+  
+  safe_fit_beta <- function(x) {
+    x <- adjust_for_beta(x)
+    start_vals <- try(mom_beta_start(x), silent = TRUE)
+    tryCatch({
+      fitdist(x, "beta", start = start_vals)
+    }, error = function(e) {
+      message("Warning: beta fit failed, switching to normal.")
+      fitdist(x, "norm")
+    })
+  }
+  
   # Fit marginal model once
   fit_marginal <- function(x, dist) {
     switch(dist,
-           beta = fitdist(x, "beta", start = list(shape1 = 1, shape2 = 1)),
+           beta = safe_fit_beta(x),
            sn   = selm(x ~ 1, family = "SN"),
            norm = fitdist(x, "norm"),
            stop("Unsupported distribution: ", dist))
@@ -936,8 +965,7 @@ results <- data.frame(
 set.seed(123)
 
 # Sample sizes to loop through
-n_vals <- seq(500, 3000, by = 500)
-n_vals_new <- seq(550, 800, by = 50)
+n_vals <- c(seq(500, 1000, by = 50), seq(1500, 3000, by = 500))
 
 summaries_list <- list()
 
@@ -966,8 +994,10 @@ for (n in n_vals_new) {
   ## 4. Simulate covariates and responses
   sex <- sample(rep(c("Male", "Female"), each = n / 2))
   trt <- sample(rep(c("Control", "Treatment"), each = n / 2))
-  Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70
-  age_std <- (Age - mean(Age))/var(Age)
+  #Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70 ## from Wagner
+  Age <- rnorm(n, mean = 70, sd = 10)
+  # Optional: truncate values to keep them within a reasonable range (e.g., 50 to 90)
+  Age <- pmin(pmax(Age, 50), 90)
   X <- model.matrix(~ sex + age_std)
   
   beta1 <- c(1.6956, 0.0584, -0.2576)
@@ -999,7 +1029,7 @@ for (n in n_vals_new) {
   runtime <- system.time({
     res <- mglm4twin(
       linear_pred = list(Y1 ~ sex + age_std, Y2 ~ sex + age_std, Y3 ~ sex + age_std),
-      matrix_pred = mat,
+      matrix_pred = c(mat),
       link = rep("logit", 3),
       variance = rep("binomialP", 3),
       data = data
@@ -1015,7 +1045,11 @@ for (n in n_vals_new) {
   h2_estimate <- h2_estimate + t(h2_estimate) - diag(diag(h2_estimate))
   
   ## 7. Ground truth h2 matrix
-  h2_vals <- A / (A + E)
+  A_lt <- c(A[1], A[4], A[5], A[2], A[6], A[3])
+  
+  # Heritability 
+  h2_vals <- A_lt / (A_lt + E_lt)
+  
   h2_matrix <- matrix(0, 3, 3)
   h2_matrix[lower.tri(h2_matrix, diag = TRUE)] <- h2_vals
   h2_matrix <- h2_matrix + t(h2_matrix) - diag(diag(h2_matrix))
@@ -1071,133 +1105,24 @@ p2 <- ggplot(results, aes(x = n, y = frob_norm)) +
 ggsave("vignettes/figures/frob_norm_vs_n.png", plot = p2, width = 6, height = 4, dpi = 600)
 
 
-
+#### Copula model ####
 
 
 # Store results
-results <- data.frame(
+results.copula <- data.frame(
   n = numeric(),
   runtime_sec = numeric(),
   frob_norm = numeric()
 )
+summaries_list.copula <- list()
 
 # Set seeds for reproducibility
 set.seed(123)
 
 # Sample sizes to loop through
-n_vals <- seq(500, 3000, by = 500)
-n_vals_new <- seq(550, 800, by = 50)
+n_vals <- c(seq(500, 1000, by = 50), seq(1500, 3000, by = 500))
+#n_vals <- c(seq(500, 1000, by = 50))
 
-summaries_list <- list()
-
-load("vignettes/simulation_results.Rdata")  # or "results_df.Rdata" and "summaries_list.Rdata"
-
-for (n in n_vals_new) {
-  cat("Running for n =", n, "\n")
-  
-  ## 1. Subset data
-  selected_rows <- sample(nrow(df), n)
-  df_selected <- df[selected_rows, ]
-  
-  ## 2. Compute GRM and make PD
-  GRM <- Gmatrix(SNPmatrix = df_selected, missingValue = -9,
-                 maf = 0.05, method = "VanRaden")
-  GRM <- nearPD(GRM)$mat
-  GRM_cor <- cov2cor(GRM)
-  
-  ## 3. Generate Omega
-  E <- c(0.75, 0.7, 0.65, -0.3, 0.25, -0.4)
-  A <- c(0.25, 0.3, 0.35, -0.15, 0.20, -0.2)
-  tau <- c(E, A)
-  mat <- mt_grm_1(n = n, grm = GRM_cor, n_resp = 3, model = "AE", data = NULL)
-  Omega <- as.matrix(mt_matrix_linear_predictor(tau = tau, Z = mat))
-  
-  ## 4. Simulate covariates and responses
-  sex <- sample(rep(c("Male", "Female"), each = n / 2))
-  trt <- sample(rep(c("Control", "Treatment"), each = n / 2))
-  Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70
-  age_std <- (Age - mean(Age))/var(Age)
-  X <- model.matrix(~ sex + age_std)
-  
-  beta1 <- c(1.6956, 0.0584, -0.2576)
-  beta2 <- c(-1.7930, 0.0875, 0.2382)
-  beta3 <- c(-0.5363, -0.05138, -0.1528)
-  
-  mu1 <- exp(X %*% beta1) / (1 + exp(X %*% beta1))
-  mu2 <- exp(X %*% beta2) / (1 + exp(X %*% beta2))
-  mu3 <- exp(X %*% beta3) / (1 + exp(X %*% beta3))
-  
-  phi <- 5
-  qparameters <- vector("list", 3 * n)
-  invcdfnames <- rep("qbeta", 3 * n)
-  for (i in 1:n) {
-    qparameters[[i]] <- list(shape1 = mu1[i]*phi, shape2 = (1 - mu1[i])*phi)
-    qparameters[[n + i]] <- list(shape1 = mu2[i]*phi, shape2 = (1 - mu2[i])*phi)
-    qparameters[[2 * n + i]] <- list(shape1 = mu3[i]*phi, shape2 = (1 - mu3[i])*phi)
-  }
-  
-  Y <- rnorta(R = 1, cor.matrix = Omega, distr = invcdfnames, qparameters = qparameters)
-  Y1 <- Y[1:n]
-  Y2 <- Y[(n+1):(2*n)]
-  Y3 <- Y[(2*n+1):(3*n)]
-  data <- data.frame(Y1 = Y1, Y2 = Y2, Y3 = Y3, sex = sex, age_std = age_std)
-  
-  ## 5. Fit model and time it
-  mat <- mt_grm_1(n=n, grm = GRM, n_resp = 3, model = "AE", data = NULL)
-  
-  runtime <- system.time({
-    res <- mglm4twin(
-      linear_pred = list(Y1 ~ sex + age_std, Y2 ~ sex + age_std, Y3 ~ sex + age_std),
-      matrix_pred = mat,
-      link = rep("logit", 3),
-      variance = rep("binomialP", 3),
-      data = data
-    )
-  })["elapsed"]
-  
-  sum <- summary(res, model = "AE", biometric = TRUE)
-  
-  ## 6. Reconstruct estimated h2 matrix
-  h2_estimate <- matrix(0, 3, 3)
-  diag(h2_estimate) <- sum$A_main$Estimates
-  h2_estimate[lower.tri(h2_estimate)] <- sum$A_cross$Estimates
-  h2_estimate <- h2_estimate + t(h2_estimate) - diag(diag(h2_estimate))
-  
-  ## 7. Ground truth h2 matrix
-  h2_vals <- A / (A + E)
-  h2_matrix <- matrix(0, 3, 3)
-  h2_matrix[lower.tri(h2_matrix, diag = TRUE)] <- h2_vals
-  h2_matrix <- h2_matrix + t(h2_matrix) - diag(diag(h2_matrix))
-  
-  ## 8. Frobenius norm
-  frob <- norm(h2_matrix - h2_estimate, type = "F")
-  
-  ## 9. Store results
-  results <- rbind(results, data.frame(n = n, runtime_sec = runtime, frob_norm = frob))
-  summaries_list[[paste0("n_", n)]] <- sum
-}
-# View results
-print(results)
-
-
-#### EVD model ####
-
-
-# Store results
-results.evd <- data.frame(
-  n = numeric(),
-  runtime_sec = numeric(),
-  frob_norm = numeric()
-)
-
-# Set seeds for reproducibility
-set.seed(123)
-
-# Sample sizes to loop through
-n_vals <- seq(3000, 6000, by = 1000)
-#n_vals_new <- seq(550, 800, by = 50)
-
-summaries_list.evd <- list()
 
 #load("vignettes/simulation_results.Rdata")  # or "results_df.Rdata" and "summaries_list.Rdata"
 
@@ -1224,7 +1149,10 @@ for (n in n_vals) {
   ## 4. Simulate covariates and responses
   sex <- sample(rep(c("Male", "Female"), each = n / 2))
   trt <- sample(rep(c("Control", "Treatment"), each = n / 2))
-  Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70
+  #Age <- rbeta(n, shape1 = 0.3*2, shape2 = 0.7*2)*20 + 70 ## from Wagner
+  Age <- rnorm(n, mean = 70, sd = 10)
+  # Optional: truncate values to keep them within a reasonable range (e.g., 50 to 90)
+  Age <- pmin(pmax(Age, 50), 90)
   age_std <- (Age - mean(Age))/var(Age)
   X <- model.matrix(~ sex + age_std)
   
@@ -1252,13 +1180,35 @@ for (n in n_vals) {
   data <- data.frame(Y1 = Y1, Y2 = Y2, Y3 = Y3, sex = sex, age_std = age_std)
   
   ## 5. Fit model and time it
-  mat <- mt_evd(n=n, grm = GRM, n_resp = 3, model = "AE", data = NULL)
+  
+  marginals <- list(
+    Y1 = "beta",
+    Y2 = "beta",
+    Y3 = "beta",
+    age_std = "norm"  # skew-normal
+  )
+  
+  
+  mat <- mt_copula_3(
+    n = nrow(data),
+    grm = GRM,
+    n_resp = 3,
+    model = "AE",  # or "E", depending on what you want
+    formula = NULL,
+    data = data,
+    marginals = marginals,
+    backtransform = T  # or FALSE if you want to stay in the copula-transformed space
+  )
+  
+  
   
   runtime <- system.time({
     res <- mglm4twin(
       linear_pred = list(Y1 ~ sex + age_std, Y2 ~ sex + age_std, Y3 ~ sex + age_std),
-      matrix_pred = mat,
-      data = data
+      matrix_pred = c(mat$matrices),
+      link = rep("logit", 3),
+      variance = rep("binomialP", 3),
+      data = mat$data
     )
   })["elapsed"]
   
@@ -1271,7 +1221,13 @@ for (n in n_vals) {
   h2_estimate <- h2_estimate + t(h2_estimate) - diag(diag(h2_estimate))
   
   ## 7. Ground truth h2 matrix
-  h2_vals <- A / (A + E)
+  A_lt <- c(A[1], A[4], A[5], A[2], A[6], A[3])
+  E_lt <- c(E[1], E[4], E[5], E[2], E[6], E[3])
+  
+  
+  # Heritability 
+  h2_vals <- A_lt / (A_lt + E_lt)
+  
   h2_matrix <- matrix(0, 3, 3)
   h2_matrix[lower.tri(h2_matrix, diag = TRUE)] <- h2_vals
   h2_matrix <- h2_matrix + t(h2_matrix) - diag(diag(h2_matrix))
@@ -1280,16 +1236,53 @@ for (n in n_vals) {
   frob <- norm(h2_matrix - h2_estimate, type = "F")
   
   ## 9. Store results
-  results.evd <- rbind(results.evd, data.frame(n = n, runtime_sec = runtime, frob_norm = frob))
-  summaries_list.evd[[paste0("n_", n)]] <- sum
+  results.copula <- rbind(results.copula, data.frame(n = n, runtime_sec = runtime, frob_norm = frob))
+  summaries_list.copula[[paste0("n_", n)]] <- sum
 }
 # View results
-print(results.evd)
+print(results.copula)
 
+# Save results to .Rdata
+#save(results.copula, summaries_list.copula, file = "vignettes/simulation_results_copula.Rdata")
 
+# Save results to .Rdata
+#save(results, summaries_list, file = "vignettes/simulation_results.Rdata")
 
+# Define a consistent, publication-ready theme
+theme_pub <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 14),
+    axis.title = element_text(face = "bold"),
+    axis.text = element_text(color = "black"),
+    panel.grid.minor = element_blank()
+  )
 
+# Plot 1: Computation time
+p1 <- ggplot(results.copula, aes(x = n, y = runtime_sec)) +
+  geom_line(color = "#1f77b4", linewidth = 1) +
+  geom_point(shape = 21, fill = "#1f77b4", size = 2) +
+  labs(
+    title = "Computation Time vs Sample Size (n)",
+    subtitle = "Phenotypes = 3, Type = Multibound",
+    x = "Sample Size (n)",
+    y = "Computation Time (seconds)"
+  ) +
+  theme_pub
+p1
+ 
 
+# Plot 2: Frobenius norm
+p2 <- ggplot(results.copula, aes(x = n, y = frob_norm)) +
+  geom_line(color = "#d62728", linewidth = 1) +
+  geom_point(shape = 21, fill = "#d62728", size = 2) +
+  labs(
+    title = "Estimation Error vs Sample Size (n)",
+    subtitle = expression("Frobenius Norm of (" * h^2 * " - " * hat(h)^2 * "), Phenotypes = 3, Type = Multibound"),
+    x = "Sample Size (n)",
+    y = "Frobenius Norm"
+  ) +
+  theme_pub
+p2
 
 
 
