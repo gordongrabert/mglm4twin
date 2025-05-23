@@ -969,9 +969,9 @@ n_vals <- c(seq(500, 1000, by = 50), seq(1500, 3000, by = 500))
 
 summaries_list <- list()
 
-load("vignettes/simulation_results.Rdata")  # or "results_df.Rdata" and "summaries_list.Rdata"
+#load("vignettes/simulation_results.Rdata")  # or "results_df.Rdata" and "summaries_list.Rdata"
 
-for (n in n_vals_new) {
+for (n in n_vals) {
   cat("Running for n =", n, "\n")
 
   ## 1. Subset data
@@ -1046,6 +1046,7 @@ for (n in n_vals_new) {
   
   ## 7. Ground truth h2 matrix
   A_lt <- c(A[1], A[4], A[5], A[2], A[6], A[3])
+  E_lt <- c(E[1], E[4], E[5], E[2], E[6], E[3])
   
   # Heritability 
   h2_vals <- A_lt / (A_lt + E_lt)
