@@ -998,6 +998,7 @@ for (n in n_vals) {
   Age <- rnorm(n, mean = 70, sd = 10)
   # Optional: truncate values to keep them within a reasonable range (e.g., 50 to 90)
   Age <- pmin(pmax(Age, 50), 90)
+  age_std <- (Age - mean(Age))/var(Age)
   X <- model.matrix(~ sex + age_std)
   
   beta1 <- c(1.6956, 0.0584, -0.2576)
@@ -1066,7 +1067,7 @@ for (n in n_vals) {
 print(results)
 
 # Save results to .Rdata
-#save(results, summaries_list, file = "vignettes/simulation_results.Rdata")
+save(results, summaries_list, file = "vignettes/simulation_results.Rdata")
 
 # Define a consistent, publication-ready theme
 theme_pub <- theme_minimal(base_size = 12) +
@@ -1089,6 +1090,8 @@ p1 <- ggplot(results, aes(x = n, y = runtime_sec)) +
   ) +
   theme_pub
 
+p1
+
 ggsave("vignettes/figures/computation_time_vs_n.png", plot = p1, width = 6, height = 4, dpi = 600)
 
 # Plot 2: Frobenius norm
@@ -1102,6 +1105,7 @@ p2 <- ggplot(results, aes(x = n, y = frob_norm)) +
     y = "Frobenius Norm"
   ) +
   theme_pub
+p2
 
 ggsave("vignettes/figures/frob_norm_vs_n.png", plot = p2, width = 6, height = 4, dpi = 600)
 
@@ -1285,6 +1289,199 @@ p2 <- ggplot(results.copula, aes(x = n, y = frob_norm)) +
   theme_pub
 p2
 
+
+# Combine results
+
+# Combine unique rows by 'n' from results.copula
+results.copula_unique <- results.copula %>%
+  distinct(n, .keep_all = TRUE)
+
+# Join on 'n' column
+combined <- results %>%
+  rename(runtime_sec_original = runtime_sec,
+         frob_norm_original = frob_norm) %>%
+  inner_join(
+    results.copula_unique %>%
+      rename(runtime_sec_copula = runtime_sec,
+             frob_norm_copula = frob_norm),
+    by = "n"
+  )
+
+# View combined data
+print(combined)
+
+# Plot 1: Computation time
+p1 <- ggplot(combined, aes(x = n)) +
+  geom_line(aes(y = runtime_sec_original, color = "Original"), linewidth = 1) +
+  geom_line(aes(y = runtime_sec_copula, color = "Copula-EVD Projection"), linewidth = 1) +
+  geom_point(aes(y = runtime_sec_original, fill = "Original"), shape = 21, size = 2) +
+  geom_point(aes(y = runtime_sec_copula, fill = "Copula-EVD Projection"), shape = 21, size = 2) +
+  labs(
+    title = "Computation Time vs Sample Size (n)",
+    subtitle = "Phenotypes = 3, Type = Multibound",
+    x = "Sample Size (n)",
+    y = "Computation Time (seconds)",
+    color = "Method",
+    fill = "Method"
+  ) +
+  theme_pub
+
+# Plot 2: Frobenius norm
+p2 <- ggplot(combined, aes(x = n)) +
+  geom_line(aes(y = frob_norm_original, color = "Original"), linewidth = 1) +
+  geom_line(aes(y = frob_norm_copula, color = "Copula-EVD Projection"), linewidth = 1) +
+  geom_point(aes(y = frob_norm_original, fill = "Original"), shape = 21, size = 2) +
+  geom_point(aes(y = frob_norm_copula, fill = "Copula-EVD Projection"), shape = 21, size = 2) +
+  labs(
+    title = "Estimation Error vs Sample Size (n)",
+    subtitle = expression("Frobenius Norm of (" * h^2 * " - " * hat(h)^2 * "), Phenotypes = 3, Type = Multibound"),
+    x = "Sample Size (n)",
+    y = "Frobenius Norm",
+    color = "Method",
+    fill = "Method"
+  ) +
+  theme_pub
+
+p1
+p2
+
+p1 <- ggplot(combined, aes(x = n)) +
+  geom_line(aes(y = runtime_sec_original, color = "Original"), linewidth = 1) +
+  geom_line(aes(y = runtime_sec_copula, color = "Copula-EVD Projection"), linewidth = 1) +
+  geom_point(aes(y = runtime_sec_original, fill = "Original"), shape = 21, size = 2) +
+  geom_point(aes(y = runtime_sec_copula, fill = "Copula-EVD Projection"), shape = 21, size = 2) +
+  scale_y_log10() +
+  labs(
+    title = "Computation Time vs Sample Size (n)",
+    subtitle = "Log Scale — Phenotypes = 3, Type = Multibound",
+    x = "Sample Size (n)",
+    y = "Computation Time (seconds, log scale)",
+    color = "Method",
+    fill = "Method"
+  ) +
+  theme_pub
+
+p1
+
+### Publication ready #####
+
+library(cowplot)  # for plot_grid
+
+# Base Theme
+theme_pub <- theme_minimal(base_size = 16) +
+  theme(
+    legend.position = "top",
+    legend.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 14),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+
+# Define colors manually
+method_colors <- c("GRM" = "#1b9e77", "Copula-EVD Projection" = "#d95f02")
+
+# Frobenius Norm Plot
+p_frob <- ggplot(combined, aes(x = n)) +
+  geom_line(aes(y = frob_norm_original, color = "GRM"), linewidth = 1) +
+  geom_line(aes(y = frob_norm_copula, color = "Copula-EVD Projection"), linewidth = 1) +
+  geom_point(aes(y = frob_norm_original, fill = "GRM"), shape = 21, size = 2, color = "black") +
+  geom_point(aes(y = frob_norm_copula, fill = "Copula-EVD Projection"), shape = 21, size = 2, color = "black") +
+  scale_color_manual(values = method_colors) +
+  scale_fill_manual(values = method_colors) +
+  labs(
+    title = "Estimation Error vs Sample Size",
+    subtitle = expression("Frobenius norm of (" * h^2 * " - " * hat(h)^2 * "), Traits = 3, Type = Multibound"),
+    x = "Sample Size (n)",
+    y = "Frobenius Norm",
+    color = "Method",
+    fill = "Method"
+  ) +
+  theme_pub
+
+# Runtime Plot (log scale)
+p_runtime <- ggplot(combined, aes(x = n)) +
+  geom_line(aes(y = runtime_sec_original, color = "GRM"), linewidth = 1) +
+  geom_line(aes(y = runtime_sec_copula, color = "Copula-EVD Projection"), linewidth = 1) +
+  geom_point(aes(y = runtime_sec_original, fill = "GRM"), shape = 21, size = 2, color = "black") +
+  geom_point(aes(y = runtime_sec_copula, fill = "Copula-EVD Projection"), shape = 21, size = 2, color = "black") +
+  scale_y_log10() +
+  scale_color_manual(values = method_colors) +
+  scale_fill_manual(values = method_colors) +
+  labs(
+    title = "Computation Time vs Sample Size",
+    subtitle = "Traits = 3, Type = Multibound",
+    x = "Sample Size (n)",
+    y = "Time (seconds, log scale)",
+    color = "Method",
+    fill = "Method"
+  ) +
+  theme_pub
+
+# Combine Plots
+final_plot <- plot_grid(p_frob, p_runtime, labels = c("A", "B"), ncol = 2, align = "v")
+print(final_plot)
+
+ggsave("vignettes/figures/method_comparison.pdf", final_plot, width = 12, height = 6, dpi = 300)
+
+#### Real sparrow data ####
+
+library(genio)
+library(AGHmatrix)
+
+### Read Prunned Chr1 ###
+
+library(genio)
+
+# Path to prefix (without extension)
+plink_prefix <- "/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/plink_by_chr/chr1/chr1"
+
+# Read all PLINK files with this prefix
+plink_data <- read_plink(plink_prefix)
+# Your loaded data
+# plink_data$X is SNPs x individuals integer matrix
+
+# Transpose to individuals x SNPs
+geno_mat <- t(plink_data$X)
+
+# Optional: convert to numeric (if integer, AGHmatrix should be fine)
+geno_mat <- as.matrix(geno_mat)
+
+# Assign row and column names
+rownames(geno_mat) <- plink_data$fam$id   # individual IDs
+colnames(geno_mat) <- plink_data$bim$id   # SNP IDs
+
+# Calculate GRM with AGHmatrix
+GRM <- Gmatrix(geno_mat, missingValue=-9,
+               maf=0.05, method="VanRaden")
+
+# Save GRM
+saveRDS(grm, "GRM_additive.rds")
+
+# Load phenotype data from a text file (tab-delimited)
+phenotypes <- read.table("/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/LundreganEtAl_PhenosAge1.txt", 
+                         header = TRUE, sep = "\ ", stringsAsFactors = FALSE)
+# View first rows
+head(phenotypes)
+
+
+# Generate ggpairs plot
+p <- ggpairs(
+  phenotypes,
+  columns = c(6:8),
+  aes(color = as.factor(island), alpha = 0.6),
+  upper = list(continuous = wrap("points", size = 1.5)),
+  lower = list(continuous = wrap("points", size = 1.5)),
+  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
+) +
+  papaja::theme_apa(base_size = 12) +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(face = "bold"),
+    panel.grid = element_blank()
+  )
+
+p
 
 
 
