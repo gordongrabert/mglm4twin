@@ -1440,6 +1440,106 @@ phenotypes <- read.table("/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_
                          header = TRUE, sep = "\ ", stringsAsFactors = FALSE)
 data.sparrow <- phenotypes %>% select(age1billD, age1billL, sex, hatchyear, island)
 
+mt_copula_sparrow <- function(n, grm, n_resp, model, formula = NULL, data = NULL, marginals = NULL, backtransform = FALSE) {
+  library(fitdistrplus)
+  library(copula)
+  library(Matrix)
+  library(sn)
+  
+  # Ensure factors are treated as such
+  data$sex <- as.factor(data$sex)
+  data$hatchyear <- as.factor(data$hatchyear)
+  data$island <- as.factor(data$island)
+  
+  # Identify response variables
+  response_vars <- names(data)[1:n_resp]
+  data_numeric <- data[, response_vars]
+  
+  # Fit marginal distributions if not provided
+  if (is.null(marginals)) {
+    marginals <- rep("norm", n_resp)  # assume normal marginals for your case
+  }
+  
+  fit_marginal <- function(x, dist) {
+    switch(dist,
+           beta = safe_fit_beta(x),
+           sn   = selm(x ~ 1, family = "SN"),
+           norm = fitdist(x, "norm"),
+           stop("Unsupported distribution: ", dist))
+  }
+  
+  cdf_marginal <- function(x, fit, dist) {
+    switch(dist,
+           beta = pbeta(x, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+           sn   = psn(x, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3]),
+           norm = pnorm(x, mean = fit$estimate["mean"], sd = fit$estimate["sd"]),
+           stop("Unsupported distribution: ", dist))
+  }
+  
+  fits <- Map(fit_marginal, data_numeric, marginals)
+  data_copula <- as.data.frame(Map(function(x, fit, dist) {
+    qnorm(pmin(pmax(cdf_marginal(x, fit, dist), 1e-10), 1 - 1e-10))
+  }, data_numeric, fits, marginals))
+  
+  # Add fixed effects
+  data_copula <- cbind(data_copula, data[, !(names(data) %in% response_vars), drop = FALSE])
+  
+  # GRM decomposition and projection
+  grm_eig <- eigen(as.matrix(grm), symmetric = TRUE)
+  Q <- grm_eig$vectors
+  P <- as.data.frame(t(Q) %*% as.matrix(data_copula[, response_vars]))
+  colnames(P) <- response_vars
+  P <- cbind(P, data_copula[, !(names(data_copula) %in% response_vars)])
+  
+  # Optional back-transformation
+  if (backtransform) {
+    inverse_transform <- function(z, fit, dist) {
+      u <- pnorm(z)
+      switch(dist,
+             beta = qbeta(u, shape1 = fit$estimate["shape1"], shape2 = fit$estimate["shape2"]),
+             sn   = qsn(u, xi = coef(fit)[1], omega = coef(fit)[2], alpha = coef(fit)[3]),
+             norm = qnorm(u, mean = fit$estimate["mean"], sd = fit$estimate["sd"]),
+             stop("Unsupported distribution: ", dist))
+    }
+    
+    P[response_vars] <- as.data.frame(Map(function(z, fit, dist) {
+      inverse_transform(z, fit, dist)
+    }, P[response_vars], fits, marginals))
+  }
+  
+  # Matrix structure
+  E <- diag(nrow(grm))
+  output <- list()
+  
+  if (n_resp > 1) {
+    Z_struc <- mglm4twin:::mt_struc(n_resp = n_resp)
+    ind_A <- lapply(Z_struc, function(x) kronecker(x, diag(grm_eig$values)))
+    ind_E <- lapply(Z_struc, function(x) kronecker(x, E))
+  }
+  
+  if (n_resp == 1) {
+    output$matrices <- if (model == "AE") list(ind_E, ind_A) else list(ind_E)
+    output$data <- P
+  } else {
+    output$matrices <- if (model == "AE") c(ind_E, ind_A) else ind_E
+    output$data <- P
+  }
+  
+  # Optional: apply model matrices for fixed effects
+  if (!is.null(formula)) {
+    if (length(output$matrices) != length(formula)) stop("Formulas don't match matrix components")
+    X_list <- lapply(formula, model.matrix, data = P)
+    output$matrices <- do.call(c, lapply(seq_along(output$matrices), function(i) {
+      lapply(seq_len(ncol(X_list[[i]])), function(j) {
+        X_list[[i]][, j] * output$matrices[[i]]
+      })
+    }))
+  }
+  
+  return(output)
+}
+
+
 form_billD <- age1billD ~ sex + hatchyear + island
 form_billL <- age1billL ~ sex + hatchyear + island
 
@@ -1454,7 +1554,7 @@ for (chr in chromosomes) {
   cat("Processing", chr, "\n")
   start_time <- Sys.time()
   
-  plink_prefix <- file.path(base_path, chr, paste0(chr))
+  plink_prefix <- file.path(base_path, chr, paste0(chr,"_LD_pruned"))
   # Read PLINK data
   plink_data <- read_plink(plink_prefix)
   geno_mat <- t(plink_data$X)
@@ -1523,6 +1623,19 @@ df_all <- df_all %>%
     chrom_label = chrom_order[chrom_num]
   )
 
+
+
+# Color-blind friendly colors (Okabe-Ito)
+
+df_all$component <- factor(df_all$component, levels = c("Bill Depth", "Bill Length", "Depth × Length"))
+
+cbf_colors <- c(
+  "Bill Depth" = "#0072B2",    # blue
+  "Bill Length" = "#E69F00",   # orange
+  "Depth × Length" = "#D55E00" # vermillion/red
+)
+  
+
 # Compute y-axis limits for 95% CI
 y_min <- floor(min(df_all$Estimates - 1.96 * df_all$std.error) * 10) / 10
 y_max <- ceiling(max(df_all$Estimates + 1.96 * df_all$std.error) * 10) / 10
@@ -1543,7 +1656,7 @@ p <- ggplot(df_all, aes(x = chrom_num, y = Estimates, group = component)) +
   scale_x_continuous(name = "Chromosome",
                      breaks = df_all$chrom_num %>% unique(),
                      labels = chrom_order) +
-  scale_color_jco(name = NULL) +
+  #scale_color_jco(name = NULL) +
   scale_shape_manual(name = NULL, values = c(16, 17, 15)) +
   scale_y_continuous(name = expression(h^2~Estimate~"(95% CI)"),
                      limits = c(y_min, y_max)) +
@@ -1561,7 +1674,9 @@ p <- ggplot(df_all, aes(x = chrom_num, y = Estimates, group = component)) +
   theme(panel.grid.major.y = element_blank(),
         panel.grid.minor.y = element_blank()) +
   # Add solid horizontal line at y=0 (x-axis)
-  geom_hline(yintercept = 0, color = "black", size = 0.7, alpha =0.7)
+  geom_hline(yintercept = 0, color = "black", size = 0.7, alpha =0.7) +
+  scale_color_manual(values = cbf_colors) +
+  scale_fill_manual(values = cbf_colors)
 
 p
 
@@ -1570,6 +1685,81 @@ ggsave("~/Documents/Genomic McGLM/GMDS/figures/sparrow_heritability_plot.pdf", p
 # View runtime summary
 print(runtimes)
 
+#### Total h^2 heritability ####
+
+library(dplyr)
+library(genio)   # for reading PLINK data
+# make sure mt_copula_sparrow, mglm4twin, Gmatrix are loaded
+
+# Phenotypes
+phenotypes <- read.table(
+  "/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/LundreganEtAl_PhenosAge1.txt",
+  header = TRUE, sep = "\ ", stringsAsFactors = FALSE
+)
+data.sparrow <- phenotypes %>% select(age1billD, age1billL, sex, hatchyear, island)
+
+# Formulas
+form_billD <- age1billD ~ sex + hatchyear + island
+form_billL <- age1billL ~ sex + hatchyear + island
+
+# Path to combined PLINK dataset without chromosome 16
+plink_prefix <- "/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/plink_total/chr_all_no16"
+
+# Read PLINK data with genio (detects ped/map or bed/bim/fam automatically)
+plink_data <- genio::read_plink(plink_prefix)
+
+# plink_data contains:
+#   $bed   = genotype matrix [individuals x SNPs]
+#   $fam   = sample info (data.frame)
+#   $bim   = variant info (data.frame)
+
+geno_mat <- t(plink_data$X)
+geno_mat <- as.matrix(geno_mat)
+rownames(geno_mat) <- plink_data$fam$id
+colnames(geno_mat) <- plink_data$bim$id
+
+
+# Calculate GRM
+GRM <- Gmatrix(geno_mat, missingValue = -9, maf = 0.05, method = "VanRaden")
+
+# Run mt_copula_sparrow
+mat.output <- mt_copula_sparrow(
+  n = nrow(data.sparrow),
+  grm = GRM,
+  n_resp = 2,
+  model = "AE",
+  formula = NULL,
+  data = data.sparrow,
+  marginals = c("norm", "norm"),
+  backtransform = TRUE
+)
+
+# Fit GREML model
+res.sparrow <- mglm4twin(
+  linear_pred = c(form_billD, form_billL),
+  matrix_pred = c(mat.output$matrices),
+  link = rep("identity", 2),
+  variance = rep("constant", 2),
+  data = mat.output$data
+)
+
+# Summary
+sum.sparrow <- summary(res.sparrow, model = "AE", biometric = TRUE)
+
+# Prepare results for plotting
+df_results <- bind_rows(
+  sum.sparrow$A_main %>% mutate(component = rownames(.), type = "main"),
+  sum.sparrow$A_cross %>% mutate(component = rownames(.), type = "cross")
+)
+
+df_results$component <- recode(df_results$component,
+                               "h1" = "Bill Depth",
+                               "h2" = "Bill Length",
+                               "h12" = "Depth × Length")
+df_results$component <- factor(df_results$component, levels = c("Bill Depth", "Bill Length", "Depth × Length"))
+df_results$chromosome <- "all_no16"
+
+print(df_results)
 
 
 
