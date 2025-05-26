@@ -1425,63 +1425,150 @@ print(final_plot)
 ggsave("vignettes/figures/method_comparison.pdf", final_plot, width = 12, height = 6, dpi = 300)
 
 #### Real sparrow data ####
+### Heritability Loop ###
+
 
 library(genio)
 library(AGHmatrix)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(ggsci)
 
-### Read Prunned Chr1 ###
-
-library(genio)
-
-# Path to prefix (without extension)
-plink_prefix <- "/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/plink_by_chr/chr1/chr1"
-
-# Read all PLINK files with this prefix
-plink_data <- read_plink(plink_prefix)
-# Your loaded data
-# plink_data$X is SNPs x individuals integer matrix
-
-# Transpose to individuals x SNPs
-geno_mat <- t(plink_data$X)
-
-# Optional: convert to numeric (if integer, AGHmatrix should be fine)
-geno_mat <- as.matrix(geno_mat)
-
-# Assign row and column names
-rownames(geno_mat) <- plink_data$fam$id   # individual IDs
-colnames(geno_mat) <- plink_data$bim$id   # SNP IDs
-
-# Calculate GRM with AGHmatrix
-GRM <- Gmatrix(geno_mat, missingValue=-9,
-               maf=0.05, method="VanRaden")
-
-# Save GRM
-saveRDS(grm, "GRM_additive.rds")
-
-# Load phenotype data from a text file (tab-delimited)
+# Phenotype and model formula (reuse your existing objects)
 phenotypes <- read.table("/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/LundreganEtAl_PhenosAge1.txt", 
                          header = TRUE, sep = "\ ", stringsAsFactors = FALSE)
-# View first rows
-head(phenotypes)
+data.sparrow <- phenotypes %>% select(age1billD, age1billL, sex, hatchyear, island)
 
+form_billD <- age1billD ~ sex + hatchyear + island
+form_billL <- age1billL ~ sex + hatchyear + island
 
-# Generate ggpairs plot
-p <- ggpairs(
-  phenotypes,
-  columns = c(6:8),
-  aes(color = as.factor(island), alpha = 0.6),
-  upper = list(continuous = wrap("points", size = 1.5)),
-  lower = list(continuous = wrap("points", size = 1.5)),
-  diag = list(continuous = wrap("densityDiag", alpha = 0.5)),
-) +
-  papaja::theme_apa(base_size = 12) +
-  theme(
-    legend.position = "bottom",
-    strip.text = element_text(face = "bold"),
-    panel.grid = element_blank()
+chromosomes <- paste0("chr", c(1:15, 17:29))  # example; exclude 13 if missing, adjust as needed
+#chromosomes <- paste0("chr", c(1:3))  # example; exclude 13 if missing, adjust as needed
+base_path <- "/Users/gordonplri/Documents/Genomic McGLM/GMDS/doi_10_5061_dryad_hp758sn__v20180716/plink_by_chr/"
+
+results_list <- list()
+runtimes <- data.frame(chromosome = character(), runtime_secs = numeric(), stringsAsFactors = FALSE)
+
+for (chr in chromosomes) {
+  cat("Processing", chr, "\n")
+  start_time <- Sys.time()
+  
+  plink_prefix <- file.path(base_path, chr, paste0(chr))
+  # Read PLINK data
+  plink_data <- read_plink(plink_prefix)
+  geno_mat <- t(plink_data$X)
+  geno_mat <- as.matrix(geno_mat)
+  rownames(geno_mat) <- plink_data$fam$id
+  colnames(geno_mat) <- plink_data$bim$id
+  
+  # Calculate GRM
+  GRM <- Gmatrix(geno_mat, missingValue = -9, maf = 0.05, method = "VanRaden")
+  
+  # Run mt_copula_sparrow (assuming function is loaded in environment)
+  mat.output <- mt_copula_sparrow(
+    n = nrow(data.sparrow),
+    grm = GRM,
+    n_resp = 2,
+    model = "AE",
+    formula = NULL,
+    data = data.sparrow,
+    marginals = c("norm", "norm"),
+    backtransform = TRUE
+  )
+  
+  # Fit model
+  res.sparrow <- mglm4twin(
+    linear_pred = c(form_billD, form_billL),
+    matrix_pred = c(mat.output$matrices),
+    link = rep("identity", 2),
+    variance = rep("constant", 2),
+    data = mat.output$data
+  )
+  
+  sum.sparrow <- summary(res.sparrow, model = "AE", biometric = TRUE)
+  
+  # Extract and format results for plotting
+  df_chr <- bind_rows(
+    sum.sparrow$A_main %>%
+      mutate(component = rownames(.), type = "main"),
+    sum.sparrow$A_cross %>%
+      mutate(component = rownames(.), type = "cross")
+  )
+  
+  df_chr$component <- recode(df_chr$component,
+                             "h1" = "Bill Depth",
+                             "h2" = "Bill Length",
+                             "h12" = "Depth × Length")
+  df_chr$component <- factor(df_chr$component, levels = c("Bill Depth", "Bill Length", "Depth × Length"))
+  df_chr$chromosome <- chr
+  
+  results_list[[chr]] <- df_chr
+  
+  end_time <- Sys.time()
+  runtimes <- rbind(runtimes, data.frame(chromosome = chr, runtime_secs = as.numeric(difftime(end_time, start_time, units = "secs"))))
+}
+
+### Visualize results
+
+# Confidence Intervalls:
+
+# Define chromosome order without "chr" prefix
+chrom_order <- setdiff(1:29, 16)
+
+# Prepare data
+df_all <- df_all %>%
+  mutate(
+    chrom_num = as.numeric(factor(chromosome, levels = paste0("chr", chrom_order))),
+    chrom_label = chrom_order[chrom_num]
   )
 
+# Compute y-axis limits for 95% CI
+y_min <- floor(min(df_all$Estimates - 1.96 * df_all$std.error) * 10) / 10
+y_max <- ceiling(max(df_all$Estimates + 1.96 * df_all$std.error) * 10) / 10
+
+# Plot
+p <- ggplot(df_all, aes(x = chrom_num, y = Estimates, group = component)) +
+  geom_pointrange(
+    aes(
+      ymin = Estimates - 1.96 * std.error,
+      ymax = Estimates + 1.96 * std.error,
+      color = component,
+      shape = component
+    )
+  ) +
+  geom_point(aes(color = component, shape = component),
+             size = 3.5) +
+  facet_wrap(~component, scales = "fixed", ncol = 1) +
+  scale_x_continuous(name = "Chromosome",
+                     breaks = df_all$chrom_num %>% unique(),
+                     labels = chrom_order) +
+  scale_color_jco(name = NULL) +
+  scale_shape_manual(name = NULL, values = c(16, 17, 15)) +
+  scale_y_continuous(name = expression(h^2~Estimate~"(95% CI)"),
+                     limits = c(y_min, y_max)) +
+  theme_pubclean(base_size = 18) +
+  theme(
+    strip.text = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 14),
+    axis.text.y = element_text(size = 16),
+    axis.title.y = element_text(size = 18),
+    legend.position = "none",
+    #panel.spacing = unit(0, "lines"),
+    axis.title.x = element_text(size = 16)
+  ) + 
+  # Remove all horizontal grid lines
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank()) +
+  # Add solid horizontal line at y=0 (x-axis)
+  geom_hline(yintercept = 0, color = "black", size = 0.7, alpha =0.7)
+
 p
+
+ggsave("~/Documents/Genomic McGLM/GMDS/figures/sparrow_heritability_plot.pdf", plot = p, width = 12, height = 10, units = "in", device = cairo_pdf)
+
+# View runtime summary
+print(runtimes)
 
 
 
