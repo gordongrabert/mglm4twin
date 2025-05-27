@@ -1946,6 +1946,176 @@ ggsave("~/Documents/Genomic McGLM/GMDS/figures/sparrow_heritability_plot.pdf", p
 print(runtimes)
 
 
+#### PCA on GRM ####
+# Load necessary libraries
+library(FactoMineR)
+library(factoextra)
+library(ggpubr)
+library(dplyr)
+library(ggthemes)
+library(ggplot2)
+
+# Count individuals per island
+island_counts <- phenotype_raw %>%
+  count(island, name = "n_individuals")
+
+# PCA
+res.pca <- PCA(GRM, graph = FALSE)
+
+# Extract PCA scores
+pca_coords <- as.data.frame(res.pca$ind$coord[, 1:2])
+pca_coords$ID <- rownames(pca_coords)
+
+# Add island group (ensure ID formats match)
+group_info <- phenotype_raw %>%
+  mutate(id = as.character(id)) %>%
+  select(id, island)
+
+# Join island info to PCA coordinates
+pca_coords <- pca_coords %>%
+  mutate(id = rownames(.)) %>%
+  left_join(group_info, by = "id") %>%
+  mutate(island = as.factor(island))
+
+# Add island name mapping
+island_map <- tibble::tibble(
+  island = factor(c(20, 22, 23, 24, 26, 27, 28, 38)),
+  island_name = c("Nesøya", "Myken", "Selvær", "Træna",
+                  "Gjerøy", "Hestmannøy", "Indre Kvarøy", "Aldra")
+)
+
+# Merge readable island names
+pca_coords <- pca_coords %>%
+  left_join(island_map, by = "island")
+
+# Variance explained
+expl_var <- res.pca$eig[1:2, 2]
+
+
+# Okabe-Ito colorblind-friendly palette (8 colors)
+cbf_palette <- c(
+  "#E69F00",  # orange
+  "#56B4E9",  # sky blue
+  "#009E73",  # bluish green
+  "#F0E442",  # yellow
+  "#0072B2",  # blue
+  "#D55E00",  # vermillion
+  "#CC79A7",  # reddish purple
+  "#999999"   # gray
+)
+
+pca_islands <- ggplot(pca_coords, aes(x = Dim.1, y = Dim.2, color = island_name)) +
+  stat_ellipse(level = 0.95, size = 1) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = cbf_palette) +
+  labs(
+    title = "PCA of Genomic Relationship Matrix",
+    x = paste0("PC1 (", round(expl_var[1], 1), "% variance)"),
+    y = paste0("PC2 (", round(expl_var[2], 1), "% variance)"),
+    color = "Island"
+  ) +
+  theme_apa(base_size = 16) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    legend.title = element_text(size = 16, face = "bold"),
+    legend.text = element_text(size = 16),
+    legend.key.size = unit(0.6, "cm"),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 16)
+  )
+
+print(pca_islands)
+
+
+ggsave("~/Documents/Genomic McGLM/GMDS/figures/pca_islands.pdf", plot = pca_islands, width = 10, height = 8)
+
+
+
+### Correlation plot Phenotypes ###
+
+# Load required libraries
+# Load libraries
+library(GGally)
+library(ggplot2)
+library(dplyr)
+library(ggthemes)
+
+# Define colorblind-friendly palette with island names
+island_palette <- c(
+  "Aldra" = "#E69F00",
+  "Gjerøy" = "#56B4E9",
+  "Hestmannøy" = "#009E73",
+  "Indre Kvarøy" = "#F0E442",
+  "Myken" = "#0072B2",
+  "Nesøya" = "#D55E00",
+  "Selvær" = "#CC79A7",
+  "Træna" = "#999999"
+)
+
+# Mapping from numeric island codes to names (example: adjust as needed)
+island_lookup <- c(
+  "20" = "Nesøya",
+  "22" = "Myken",
+  "23" = "Træna",
+  "24" = "Selvær",
+  "26" = "Gjerøy",
+  "27" = "Hestmannøy",
+  "28" = "Indre Kvarøy",
+  "38" = "Aldra"
+)
+
+# Prepare phenotype data and rename variables
+pheno_data <- phenotype_raw %>%
+  mutate(island_name = factor(island_lookup[as.character(island)], levels = names(island_palette))) %>%
+  select(island_name, age1billD, age1billL) %>%
+  rename(
+    `Bill Depth` = age1billD,
+    `Bill Length` = age1billL,
+  )
+
+# Create the ggpairs plot
+pheno_plot <- ggpairs(
+  data = pheno_data,
+  columns = 2:3,  # phenotype columns
+  mapping = aes(color = island_name),
+  upper = list(continuous = wrap("cor", size = 6)),
+  lower = list(continuous = wrap("points", alpha = 0.8, size = 1.5)),
+  diag = list(continuous = wrap("densityDiag", alpha = 0.5))
+) +
+  scale_color_manual(values = okabe_ito, name = "Island") +
+  theme_apa(base_size = 16) +
+  theme(
+    legend.position = "right",
+    legend.title = element_text(size = 13, face = "bold"),
+    legend.text = element_text(size = 16),
+    strip.text = element_text(face = "bold")
+  )
+
+# Show the plot
+print(pheno_plot)
+
+
+# Export the correlation plot to PDF
+ggsave(
+  filename = "~/Documents/Genomic McGLM/GMDS/figures/correlation_plot_island.pdf",
+  plot = pheno_plot,
+  # Ensures good font rendering
+  width = 10,               # Width in inches
+  height = 8,              # Height in inches
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ##### Factor model ####
 
